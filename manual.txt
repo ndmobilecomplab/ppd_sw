@@ -1,0 +1,147 @@
+PREDATOR PROTECTION DEVICE (Gen 2): MANUAL
+Josh Siva, University of Notre Dame
+August 2016
+
+Use:
+----
+Overview- The purpose of this device is to prevent predation of livestock
+located in bomas by scaring away predators. This prevents retaliation killings
+of the predators by the farmers who are dependent upon their livestock and
+seek to prevent further predation. To this end, the Predator Protection Device
+(PPD) attempts to scare away predators by periodically flashing lights and
+making sound. The PPD charges during the daylight hours through the solar
+panel while it's inactive. Once the device detects that it is night time, it
+will become active.
+
+Startup- When the device first receives power (either from charging
+sufficiently or being plugged in) the various components are initialized. In
+the event of a failure, the lights will blink red in a specified pattern three
+times before the device attempts to start up again from the beginning (see
+Error Codes for more details). If the device is set up successfully then the 
+lights will blink green. If this does not happen then there may be an issue
+with the LEDs.
+
+Charging- The device must spend the maximum amount of time in the sun each
+day if it is going to maintain a sufficient charge.
+
+Switches- The function of each switch is as follows:
+
+SD cards- The SD card closest to the lid is the sound SD card and it contains
+          the sounds that will be played. The other SD card located further
+          from the lid is the logging SD card which contains the activity log
+          for the device as well as files defining the light patterns to be
+          used.
+
+Error Codes:
+------------
+All error codes are communicated by all of the LEDs blinking red. The number
+of blinks that occur indicates what the issue is. All errors are shown three
+times before the device reboots.
+
+Sound failure		- 2 blinks
+Light sensor failure	- 3 blinks
+Sound SD card failure	- 5 blinks
+Logging SD card failure	- 6 blinks
+RTC failure		- 7 blinks
+
+The SD card related errors are mostly likely to occur if the SD card is
+missing or damaged. The light sensors can register a failure if they are
+completely covered (as a 0 light condition is very unlikely to occur in 
+real life). Aside from these sorts of failures, if the unit is registering
+a failure then a hardware component may be malfunctioning and a
+replacement may be necessary. Alternatively, an advanced user could attempt
+some troubleshooting (See Debugging/Troubleshooting below).
+
+Advanced Use:
+-------------
+>> Defining custom patterns
+   An important part of this device as an investigatory tool is the ability to
+   define custom light patterns. It is quite obvious that one in computer
+   science may not have the best idea about what sorts of patterns will be
+   most effective at detering various predators, and to that end it is possible
+   for someone (hopefully a more knowledgeable someone) to define a custom
+   pattern to be added to the device's collection of light patterns. To do this,
+   one need only examine the files that are located on the logging SD card in
+   the "patterns" directory. The file name of a new pattern file must have fewer
+   than 8 characters (excluding the extension). The file must contain at least
+   one line formatted exactly as follows:
+
+   LED-bit-mask effect r-color g-color b-color duration
+   Example:
+
+   The following line will turn one corner of the device to yellow for 5 seconds.
+
+   0100 flash 255 255 0 5000
+     ^    ^    ^   ^  ^    ^--- duration is in millisecond and is between 1-9999 ms
+     |    |    '---'--'--- amount of red, green, and blue. Each is 0-255  
+     |    --- the effect to use. Options are "flash", "alt", and "wave". See below
+     |        for more details.
+     --- Each digit represents a single LED strip. A 1 indicates that the first led
+         strip on the second strand will be affected (a single corner will light up).
+         The 0s indicate that the rest of the corners will remain dark. See below
+         for more details.
+
+   Note that each element of the line is separated by a single space. Additionally,
+   it is possible to define many of these commands in the file--one command per line.
+
+   LED bit mask- Here are some other examples to help illustrate the use of the bit
+                 mask
+   The following will light up different pairs of LEDs
+   0011 flash 255 255 0 1000
+   1100 flash 255 255 0 1000
+   1010 flash 255 255 0 1000
+   1001 flash 255 255 0 1000
+
+   You can change all of them as well:
+   1111 wave 0 0 255 1500
+
+   Effects explained:
+      flash - turns the LEDs on for indicated duration and then turns them off
+      wave  - turns the LEDs on one at a time per chip for the duration indicated
+      alt   - rapidly switches between the color indicated in this command and that
+              used in a previous alt command (off is considered the previous to
+              start) for the indicated duration.
+
+   Final note: remember that the effect will be played repeatedly for 30 seconds,
+   so if you would simply like to loop through a simple sequence then you can keep
+   your pattern definition file short and simple.
+      
+>> Debugging/Troubleshooting
+   If the device is malfunctioning then it is possible for an advanced user to
+   change how the device runs/starts up so that they can run through some
+   troubleshooting tests. These tests should help a user figure out what is
+   components are failing. To enable debugging, you must add a file to the logging
+   SD card called "debug.txt" containing the indicated text. Note that you can
+   run as many of these tests as you want and can loop through the tests
+   indefinitely by adding the word "repeat" as the last line in the file. Each
+   command must be placed on its own line.
+
+   Sound- During the sound test a song is played (a hard rock song by the Foo
+          Fighters if you're interested) that plays predominately through one 
+          speaker before playing predominately through the other. The LEDs will 
+          change color to indicate that the volume has been adjusted to the other 
+          speaker.
+          Use the text "debug sound"
+
+   Switches- During this test the LEDs will start out yellow, and then as each
+             switch is flipped will turn more and more green. The test is passed
+             if the lights blink green twice.
+             Use the text "debug switches"
+
+   Sensors- For this test it is best to start out in a bright area with the
+            sensors uncovered. The lights should be white to start. By covering
+            up both sensors, the device will change the LEDs to blue. Uncover
+            the sensors and the LEDs will change to green indicating the test
+            has been passed.
+            Use the text "debug sensors"
+
+   Patterns- To test if all of the patterns are working as expected run this
+             test and examine the patterns as they play.
+             Use the text "play all patterns"
+
+   Sounds- To test if all of the sounds are playing as expected, simply run this
+           test. Note that only the first 30 seconds of the file is played.
+           Use the text "play all sounds"
+
+   Logging- To turn on extra logging information
+            Use the text "verbose logging"

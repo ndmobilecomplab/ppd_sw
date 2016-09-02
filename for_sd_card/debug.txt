@@ -1,0 +1,6 @@
+led set 1100 0110
+debug sound
+debug switches
+debug sensors
+debug switches
+repeat
