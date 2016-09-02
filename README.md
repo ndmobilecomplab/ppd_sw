@@ -9,7 +9,4 @@ contains the song used during the sound test, and
 it can be filled with any mp3 files that you desire.
 
 Note that you will need the following libs:
-Adafruit VS1043
-NS_Rainbow
-RTClib
-SdFat
+Adafruit VS1043, NS_Rainbow, RTClib, SdFat
