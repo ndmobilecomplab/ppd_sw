@@ -15,7 +15,7 @@
 
 #define LIGHT_SENSOR_1 12       //Pin for first light sensor
 #define LIGHT_SENSOR_2 13       //Pin for second light sensor
-#define LIGHT_THRESHOLD 300  //Lower limit for light sensors before device turns on
+#define LIGHT_THRESHOLD 200  //Lower limit for light sensors before device turns on
 
 #define S1 43         //Pin for switch 1
 #define S2 41         //Pin for switch 2
@@ -71,9 +71,9 @@ boolean setupSuccessful = true;
 boolean ledFailed = false;
 boolean ignoreSetupErrors = false;
 
-byte overrideMode = -1;
-boolean overrideSensitivity = -1;
-boolean overrideNight = -1;
+int overrideMode = -1;
+int overrideSensitivity = -1;
+int overrideNight = -1;
 int overrideInterval = -1;
 
 RTC_DS3231 RTC;
@@ -466,7 +466,7 @@ void loadAndRunDebug ()
          else if (strstr(line, "mode="))
          {
             str = strtok_r(line, "=", &i);
-            overrideMode = (byte)atoi (strtok_r(NULL, "=", &i));
+            overrideMode = (int)atoi (strtok_r(NULL, "=", &i));
             if (verboseLogging)
             {
               writeToLog("mode set to " + String(overrideMode));
@@ -475,7 +475,7 @@ void loadAndRunDebug ()
          else if (strstr(line, "sensitivity="))
          {
             str = strtok_r(line, "=", &i);
-            overrideSensitivity = (boolean)atoi (strtok_r(NULL, "=", &i));
+            overrideSensitivity = (int)atoi (strtok_r(NULL, "=", &i));
             if (verboseLogging)
             {
               writeToLog("sensitivity set to " + String(overrideSensitivity));
@@ -484,7 +484,7 @@ void loadAndRunDebug ()
          else if (strstr(line, "night="))
          {
             str = strtok_r(line, "=", &i);
-            overrideNight = (boolean)atoi (strtok_r(NULL, "=", &i));
+            overrideNight = (int)atoi (strtok_r(NULL, "=", &i));
             if (verboseLogging)
             {
               writeToLog("night set to " + String(overrideNight));
