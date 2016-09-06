@@ -4,7 +4,6 @@
 #include <SPI.h>                //Standard Arduino library
 #include <SdFat.h>              //SD card library
 #include <string.h>
-#include <MemoryFree.h>
 #include <Wire.h>
 #include <RTClib.h>
 
