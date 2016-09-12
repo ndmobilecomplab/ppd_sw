@@ -87,25 +87,25 @@ void setup ()
   {
     setupSuccessful = true;
     
+    pinMode (BREAKOUT_SDCS, OUTPUT);
+    digitalWrite (BREAKOUT_SDCS, HIGH);
+          
+    if (!loggingSD.begin(LOGGING_SDCS))
+    {
+      Serial.println(F("logging SD card setup failed."));
+      error (LOGGING_SD_CARD_FAILURE);
+      setupSuccessful = false;
+    }
+    
     if (!rtcSetup())
     {
       error (RTC_FAILURE);
       setupSuccessful = false;
     }
-
-    pinMode (LOGGING_SDCS, OUTPUT);
-    digitalWrite (LOGGING_SDCS, HIGH);
     
     if (! SD.begin(BREAKOUT_SDCS)){
       Serial.println(F("sound SD card setup failed."));
       error (SOUND_SD_CARD_FAILURE);
-      setupSuccessful = false;
-    }
-    
-    if (!loggingSD.begin(LOGGING_SDCS))
-    {
-      Serial.println(F("logging SD card setup failed."));
-      error (LOGGING_SD_CARD_FAILURE);
       setupSuccessful = false;
     }
     
@@ -448,14 +448,14 @@ void loadAndRunDebug ()
            }
            playAllPatterns();
          }
-         else if (0 == strcmp (line, "verbose logging"))
+         else if (0 == strcmp (line, "verbose logging") && earlyRun)
          {
            verboseLogging = true; 
            writeToLog("Verbose logging turned on");
          }
          // none of the following should not be used by end users
          // they are primarily intended for bench/assembly testing
-         else if (0 == strcmp (line, "ignore errors")) 
+         else if (0 == strcmp (line, "ignore errors") && earlyRun)
          {
             if (verboseLogging)
             {
