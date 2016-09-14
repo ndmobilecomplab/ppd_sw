@@ -340,6 +340,9 @@ void debugSwitches()
         if (switches_init[i] != digitalRead(switches[i]))
         {
           Serial.println("Switch on pin " + String (switches[i]));
+          Serial.print("Sensitivity = " + String (isSensitive()));
+          Serial.print("; Mode = " + String (getMode()));
+          Serial.println("; Interval = " + String (getInterval()));
           switches_init[i] = digitalRead(switches[i]);
           numChanged++;
           ledSet (255 - (numChanged*36), 255, (numChanged*36));
@@ -523,6 +526,9 @@ void loadSoundsAndPatterns ()
   char buff[16];
   int index;
   
+  numSoundFiles = 0;
+  numPatternFiles = 0;
+  
   //count entries on SD card
   SD.chvol();
   SD.chdir ();
@@ -537,6 +543,8 @@ void loadSoundsAndPatterns ()
         numSoundFiles++;
       }
     }
+    
+    memset(buff, 0, 16);
     myFile.close();
   }
 
@@ -557,8 +565,8 @@ void loadSoundsAndPatterns ()
   }
   index = 0;
 
-//  Serial.print ("sound files: ");
-//  Serial.println (numSoundFiles);
+  Serial.print ("sound files: ");
+  Serial.println (numSoundFiles);
 
   while (myFile.openNext(SD.vwd(), O_READ))
   {
@@ -570,7 +578,7 @@ void loadSoundsAndPatterns ()
        if (0 != strcmp (buff, "SEAN.MP3") && NULL != strstr(buff, ".mp3"))
        {  
            strncpy (soundFiles[index++], buff, 16);
-         //  Serial.println(String(buff) + " is available to play");
+           Serial.println(String(buff) + " is available to play");
        }
     }
     
