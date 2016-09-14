@@ -76,6 +76,8 @@ int overrideSensitivity = -1;
 int overrideNight = -1;
 int overrideInterval = -1;
 
+int volume = 5;
+
 RTC_DS3231 RTC;
 
 void setup ()
@@ -130,7 +132,8 @@ void setup ()
     }
     else {
       //Rest of speaker setup
-      musicPlayer.setVolume(5,5);
+      volume = getVolume();
+      musicPlayer.setVolume(volume, volume);
       musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
       musicPlayer.sineTest(0x44, 1000);
       
@@ -198,6 +201,12 @@ void loop ()
       {
         patternIndex = random(0,numPatternFiles);
         writeToLog("Using pattern: " + String (patternFiles[patternIndex]));
+
+        if (getVolume () != volume)
+        {
+          volume = getVolume ();
+          musicPlayer.setVolume (volume, volume);
+        }
       }
       
       if (0x2 & mode)
@@ -1015,17 +1024,27 @@ boolean isNight (boolean isSensitive)
 {
   int sensor1 = analogRead(LIGHT_SENSOR_1);
   int sensor2 = analogRead(LIGHT_SENSOR_2);
+  boolean rtcDay = false;
   
   boolean sensor1IsNight = sensor1 <= LIGHT_THRESHOLD;
   boolean sensor2IsNight = sensor2 <= LIGHT_THRESHOLD;
+
+  if (useRTCForDay ())
+  {
+    DateTime now = RTC.now();
+    if (4 < now.hour() && 8 > now.hour ())
+    {
+      rtcDay = true;
+    }
+  }
 
   if (overrideNight >= 0)
   {
     return overrideNight;
   }
   
-  return (isSensitive && (sensor1IsNight || sensor2IsNight)) 
-          || (!isSensitive && (sensor1IsNight && sensor2IsNight));
+  return ((isSensitive && (sensor1IsNight || sensor2IsNight)) 
+          || (!isSensitive && (sensor1IsNight && sensor2IsNight))) && !rtcDay;
 }
 
 boolean isSensitive ()
@@ -1089,5 +1108,28 @@ int getInterval ()
   }
 
   return interval;
+}
+
+int getVolume ()
+{
+  // S1
+  byte value = digitalRead(S1);
+  int volume = 0;
+
+  if (!value) // default == loud
+  {
+    volume = 0;
+  }
+  else
+  {
+    volume = 75;
+  }
+
+  return volume;
+}
+
+boolean useRTCForDay()
+{
+  return digitalRead(S3);
 }
 
