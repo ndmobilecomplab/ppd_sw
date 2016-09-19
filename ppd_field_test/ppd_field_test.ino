@@ -79,7 +79,7 @@ int overrideSensitivity = -1;
 int overrideNight = -1;
 int overrideInterval = -1;
 
-int volume = 5;
+int volume = 75;
 
 RTC_DS3231 RTC;
 
@@ -153,7 +153,6 @@ void setup ()
     }
     else {
       //Rest of speaker setup
-      //volume = getVolume(); // can't read this if switches aren't set up yet!
       musicPlayer.setVolume(volume, volume);
       musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
       musicPlayer.sineTest(0x44, 1000);
@@ -199,44 +198,7 @@ void setup ()
   Serial.println ("Beginning main program");
   
   start = millis();
-  waitInterval = MINUTE / 2;
-  
-  test ();
-  
-}
-
-void test()
-{
-  int patternIndex;
-  unsigned long actionStart;
-  struct pattern myPattern;
-  
-  for (int i = 0; i < numSoundFiles; i++)
-  {
-     patternIndex = random(0,numPatternFiles);
-     loadPattern (patternFiles[patternIndex], myPattern);
-     
-     if (!musicPlayer.startPlayingFile (soundFiles[i]))
-     {
-        Serial.println ("problem"); 
-     }
-     Serial.println ("pattern: " + String (patternFiles[patternIndex]));
-     Serial.println ("sound file: " + String(soundFiles[i]));
-     actionStart = millis();
-     
-     while (!musicPlayer.stopped() && MINUTE / 2 >= millis() - actionStart)
-     {
-          playPattern(myPattern);
-     }
-      
-      Serial.println ("stop!");
-      
-      if (!musicPlayer.stopped())
-      {
-        musicPlayer.stopPlaying();
-      }
-      
-  } 
+  waitInterval = MINUTE / 2;  
 }
 
 void loop ()
@@ -269,22 +231,19 @@ void loop ()
         if (getVolume () != volume)
         {
           volume = getVolume ();
-          //musicPlayer.setVolume (volume, volume);
+          musicPlayer.setVolume (volume, volume);
         }
         
-        Serial.println ("here");
+        writeToLog("Playing " + String (soundFiles[soundIndex]));
         if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
         {
            Serial.println ("problem with player"); 
         }
-        Serial.println ("there");
-        writeToLog("Playing " + String (soundFiles[soundIndex]));
       }
 
       actionStart = millis();
 
-      Serial.println ("before loop");
-      while (MINUTE / 2 >= millis() - actionStart)
+      while (!musicPlayer.stopped() && MINUTE / 2 >= millis() - actionStart)
       {
         if (0x1 & mode)
         { 
@@ -780,8 +739,6 @@ boolean playPattern (struct pattern myPattern)
   int index = 0;
   boolean success = true;
   byte line = 0;
-  
-  //Serial.println ("hit");
 
   while (index < myPattern.length)
   {
