@@ -576,7 +576,6 @@ void loadSoundAndPatternNames ()
   numPatternFiles = 0;
   
   //count entries on SD card
-  SD.chvol();
   SD.chdir ();
   while (myFile.openNext(SD.vwd(), O_READ))
   {
@@ -633,10 +632,9 @@ void loadSoundAndPatternNames ()
     myFile.close();
   }
 
-  loggingSD.chvol();
-  loggingSD.chdir("/patterns");
+  SD.chdir("/patterns");
   
-  while (myFile.openNext(loggingSD.vwd(), O_READ))
+  while (myFile.openNext(SD.vwd(), O_READ))
   {
     if (!myFile.isSubDir() && !myFile.isHidden())
     {
@@ -649,7 +647,7 @@ void loadSoundAndPatternNames ()
 //    Serial.print ("pattern files: ");
 //  Serial.println (numPatternFiles);
 
-  loggingSD.chdir("/patterns");
+  SD.chdir("/patterns");
 
   if (patternFiles)
   {
@@ -664,7 +662,7 @@ void loadSoundAndPatternNames ()
   index = 0;
   
   // get file names
-  while (myFile.openNext(loggingSD.vwd(), O_READ))
+  while (myFile.openNext(SD.vwd(), O_READ))
   {
     if (!myFile.isSubDir() && !myFile.isHidden())
     {
@@ -678,8 +676,7 @@ void loadSoundAndPatternNames ()
     myFile.close();
   }
   
-  loggingSD.chdir();
-  SD.chvol();
+  SD.chdir();
   
 }
 
@@ -696,9 +693,6 @@ boolean loadPattern (char * fileName, struct pattern &myPattern)
   myPattern.length = 0;
   
   sprintf (fullName, "/patterns/%s", fileName);
-  
-  loggingSD.chvol();
-  loggingSD.chdir();
 
   if (myFile.open (fullName))
   {
@@ -721,8 +715,6 @@ boolean loadPattern (char * fileName, struct pattern &myPattern)
     success = false;
     error(1); //throw a generic error
   }
-  
-  SD.chvol();
   
   return success;
 }
