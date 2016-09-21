@@ -6,6 +6,7 @@
 #include <string.h>
 #include <Wire.h>
 #include <RTClib.h>
+#include <MemoryFree.h>
 
 //Constants
 #define LEDPIN1 27          //Pin for first LED strand
@@ -71,14 +72,24 @@ boolean setupSuccessful = true;
 boolean ledFailed = false;
 boolean ignoreSetupErrors = false;
 
+boolean loggingSDSetupFailed = false;
+
 int overrideMode = -1;
 int overrideSensitivity = -1;
 int overrideNight = -1;
 int overrideInterval = -1;
 
-int volume = 5;
+int volume = 75;
 
 RTC_DS3231 RTC;
+
+struct pattern
+{
+  int length;
+  char lines[50][32];
+};
+
+//typedef struct pattern blaw;
 
 void setup ()
 {
@@ -89,15 +100,8 @@ void setup ()
   {
     setupSuccessful = true;
     
-    pinMode (BREAKOUT_SDCS, OUTPUT);
-    digitalWrite (BREAKOUT_SDCS, HIGH);
-          
-    if (!loggingSD.begin(LOGGING_SDCS))
-    {
-      Serial.println(F("logging SD card setup failed."));
-      error (LOGGING_SD_CARD_FAILURE);
-      setupSuccessful = false;
-    }
+    pinMode (LOGGING_SDCS, OUTPUT);
+    digitalWrite (LOGGING_SDCS, HIGH);  
     
     if (!rtcSetup())
     {
@@ -110,7 +114,24 @@ void setup ()
       error (SOUND_SD_CARD_FAILURE);
       setupSuccessful = false;
     }
-    
+    else
+    {
+      SD.ls(); 
+    }
+         
+    if (!loggingSD.begin(LOGGING_SDCS))
+    {
+      Serial.println(F("logging SD card setup failed."));
+      error (LOGGING_SD_CARD_FAILURE);
+      loggingSDSetupFailed = true;
+      setupSuccessful = false;
+    }
+    else
+    {
+       loggingSDSetupFailed = false;
+       loggingSD.ls(); 
+    }
+   
     //LEDs
     if (! ledSetup(BRIGHTNESS)){
       Serial.println(F("LED setup failed."));
@@ -132,7 +153,6 @@ void setup ()
     }
     else {
       //Rest of speaker setup
-      volume = getVolume();
       musicPlayer.setVolume(volume, volume);
       musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
       musicPlayer.sineTest(0x44, 1000);
@@ -165,7 +185,7 @@ void setup ()
     
   } while (!setupSuccessful && !ignoreSetupErrors);
 
-  loadSoundsAndPatterns ();  
+  loadSoundAndPatternNames ();  
 
   writeToLog ("booted successfully");
   ledSet (0, 255, 0);
@@ -178,8 +198,7 @@ void setup ()
   Serial.println ("Beginning main program");
   
   start = millis();
-  waitInterval = MINUTE / 2;
-  
+  waitInterval = MINUTE / 2;  
 }
 
 void loop ()
@@ -190,6 +209,7 @@ void loop ()
   int baseInterval = 0;
   int adjustment = 0;
   unsigned long actionStart;
+  struct pattern myPattern;
   
   if (millis() - start > waitInterval)
   { 
@@ -200,30 +220,34 @@ void loop ()
       if (0x1 & mode)
       {
         patternIndex = random(0,numPatternFiles);
+        loadPattern (patternFiles[patternIndex], myPattern);
         writeToLog("Using pattern: " + String (patternFiles[patternIndex]));
-
-        if (getVolume () != volume)
-        {
-          volume = getVolume ();
-          musicPlayer.setVolume (volume, volume);
-        }
       }
       
       if (0x2 & mode)
       {
         soundIndex = random(0, numSoundFiles);
         
-        musicPlayer.startPlayingFile(soundFiles[soundIndex]);
+        if (getVolume () != volume)
+        {
+          volume = getVolume ();
+          musicPlayer.setVolume (volume, volume);
+        }
+        
         writeToLog("Playing " + String (soundFiles[soundIndex]));
+        if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
+        {
+           Serial.println ("problem with player"); 
+        }
       }
 
       actionStart = millis();
 
-      while (MINUTE / 2 >= millis() - actionStart)
+      while (!musicPlayer.stopped() && MINUTE / 2 >= millis() - actionStart)
       {
         if (0x1 & mode)
         { 
-          playPattern(patternFiles[patternIndex]);
+          playPattern(myPattern);
         }
       }
 
@@ -275,6 +299,7 @@ void playAllPatterns ()
 {
 //  Serial.print ("Number of patterns: ");
 //  Serial.println (numPatternFiles);
+  struct pattern myPattern;
   
   for (int i = 0; i < numPatternFiles; i++)
   {
@@ -282,10 +307,14 @@ void playAllPatterns ()
     {
       writeToLog("Running pattern " + String(patternFiles[i]));
     }
-    if (!playPattern (patternFiles[i]))
+    if (!loadPattern (patternFiles[i], myPattern))
     {
       Serial.print (F("Error running: "));
       Serial.println (patternFiles[i]);
+    }
+    else
+    {
+      playPattern (myPattern); 
     }
   }
 }
@@ -529,7 +558,15 @@ void loadAndRunDebug ()
   SD.chvol();
 }
 
-void loadSoundsAndPatterns ()
+void upperCase (char * buf, int buf_size)
+{
+  for (int i = 0; i < buf_size && buf[i]; i++)
+  {
+     buf[i] = toupper(buf[i]);
+  } 
+}
+
+void loadSoundAndPatternNames ()
 {
   SdFile myFile;
   char buff[16];
@@ -539,15 +576,15 @@ void loadSoundsAndPatterns ()
   numPatternFiles = 0;
   
   //count entries on SD card
-  SD.chvol();
   SD.chdir ();
   while (myFile.openNext(SD.vwd(), O_READ))
   {
     if (!myFile.isSubDir() && !myFile.isHidden())
     {
       myFile.getSFN (buff);
+      upperCase (buff, 16);
 
-      if (NULL != strstr(buff, ".mp3"))
+      if (NULL != strstr(buff, ".MP3"))
       {
         numSoundFiles++;
       }
@@ -574,17 +611,18 @@ void loadSoundsAndPatterns ()
   }
   index = 0;
 
-  Serial.print ("sound files: ");
-  Serial.println (numSoundFiles);
+  //Serial.print ("sound files: ");
+  //Serial.println (numSoundFiles);
 
   while (myFile.openNext(SD.vwd(), O_READ))
   {
     if (!myFile.isSubDir() && !myFile.isHidden())
     {
        myFile.getSFN (buff);
+       upperCase (buff, 16);
        
-       //Debugging song, don't worry about it. Only get mp3 files
-       if (0 != strcmp (buff, "SEAN.MP3") && NULL != strstr(buff, ".mp3"))
+       //Debugging song, don't worry about it.
+       if (0 != strcmp (buff, "SEAN.MP3") && NULL != strstr(buff, ".MP3"))
        {  
            strncpy (soundFiles[index++], buff, 16);
            Serial.println(String(buff) + " is available to play");
@@ -594,10 +632,9 @@ void loadSoundsAndPatterns ()
     myFile.close();
   }
 
-  loggingSD.chvol();
-  loggingSD.chdir("/patterns");
+  SD.chdir("/patterns");
   
-  while (myFile.openNext(loggingSD.vwd(), O_READ))
+  while (myFile.openNext(SD.vwd(), O_READ))
   {
     if (!myFile.isSubDir() && !myFile.isHidden())
     {
@@ -610,7 +647,7 @@ void loadSoundsAndPatterns ()
 //    Serial.print ("pattern files: ");
 //  Serial.println (numPatternFiles);
 
-  loggingSD.chdir("/patterns");
+  SD.chdir("/patterns");
 
   if (patternFiles)
   {
@@ -625,29 +662,65 @@ void loadSoundsAndPatterns ()
   index = 0;
   
   // get file names
-  while (myFile.openNext(loggingSD.vwd(), O_READ))
+  while (myFile.openNext(SD.vwd(), O_READ))
   {
     if (!myFile.isSubDir() && !myFile.isHidden())
     {
       myFile.getSFN (buff);
 
       strncpy (patternFiles[index++], buff, 16);
-     // Serial.println(String(buff) + " is available to use");
+      Serial.println(String(buff) + " is available to use");
 
     }
     
     myFile.close();
   }
   
-  loggingSD.chdir();
-  SD.chvol();
+  SD.chdir();
   
 }
 
-boolean playPattern (char * fileName)
+boolean loadPattern (char * fileName, struct pattern &myPattern)
 {
+  boolean success = true;
   SdFile myFile;
   char fullName[26];
+  char buff[32];
+  byte index;
+  Serial.print("freeMemory()=");
+  Serial.println(freeMemory());
+  
+  myPattern.length = 0;
+  
+  sprintf (fullName, "/patterns/%s", fileName);
+
+  if (myFile.open (fullName))
+  {
+    while (myFile.available() && myPattern.length < 100)
+    {
+      index = 0;
+      memset(buff, 0, sizeof(buff));
+      while ('\n' != (buff[index++] = myFile.read()) && index < 32);
+     
+      buff[index - 1] = '\0';
+      
+      strncpy (myPattern.lines[myPattern.length++], buff, 32);
+      //Serial.println (myPattern.lines[myPattern.length - 1]);
+    }
+    
+    myFile.close ();
+  }
+  else
+  {
+    success = false;
+    error(1); //throw a generic error
+  }
+  
+  return success;
+}
+
+boolean playPattern (struct pattern myPattern)
+{
   char effect[10];
   char buff[32];
   byte ledChip = 0;
@@ -655,106 +728,82 @@ boolean playPattern (char * fileName)
   unsigned long duration;
   char * str;
   char * i;
-  int index;
+  int index = 0;
   boolean success = true;
   byte line = 0;
 
-  sprintf (fullName, "/patterns/%s", fileName);
-  
-  loggingSD.chvol();
-  loggingSD.chdir();
-   
-  if (myFile.open (fullName))
+  while (index < myPattern.length)
   {
-    while (myFile.available())
+    str = strtok_r (myPattern.lines[index], " ", &i);
+  
+    if (4 != strlen(str))
     {
-      index = 0;
-      memset(buff, 0, sizeof(buff));
-      while ('\n' != (buff[index++] = myFile.read()) && index < 32);
-     
-      buff[index - 1] = '\0';
+      ledChip = B1111;
+    }
+    else
+    {
+      for (int i = 0; i < 4; i++)
+      {
+        ledChip <<= 1;
+        ledChip |= ('1' == str[i] ? 0x1 : 0x0);
+      } 
+    }
 
     
-//      Serial.println (buff);
- 
-      str = strtok_r (buff, " ", &i);
+    str = strtok_r (NULL, " ", &i);
+    strncpy (effect, str, 6);
     
-      if (4 != strlen(str))
-      {
-        ledChip = B1111;
-      }
-      else
-      {
-        for (int i = 0; i < 4; i++)
-        {
-          ledChip <<= 1;
-          ledChip |= ('1' == str[i] ? 0x1 : 0x0);
-        } 
-      }
-
-      
-      str = strtok_r (NULL, " ", &i);
-      strncpy (effect, str, 6);
-      
-      str = strtok_r (NULL, " ", &i);
-      r = atoi (str);
-      
-      r = r < 0 ? 0: r;
-      r = r > 255 ? 255: r;
-      
-      str = strtok_r (NULL, " ", &i);
-      g = atoi (str);
-      
-      g = g < 0 ? 0: g;
-      g = g > 255 ? 255: g;
-      
-      str = strtok_r (NULL, " ", &i);
-      b = atoi (str);
-      
-      b = b < 0 ? 0: b;
-      b = b > 255 ? 255: b;
-      
-      str = strtok_r (NULL, " ", &i);
-      duration = atoi (str);
-      
-      duration = duration < 1 ? 1: duration;
-      duration = duration > 9999 ? 9999: duration;      
-      
-      //only supports three effects at the moment
-      if (0 == strcmp(effect, "flash"))
-      {
-        // turns LEDs on then off
-        ledFlash (ledChip, r, g, b, duration);
-      }
-      else if (0 == strcmp (effect, "wave"))
-      {
-        // activates the lights on a chip one at a time from top to bottom
-        ledWave (ledChip, r, g, b, duration);
-      }
-      else if (0 == strcmp (effect, "alt"))
-      {
-        // alternates colors rapidly. Alternates with the color used during the
-        // last call
-        ledAlternate (ledChip, r, g, b, duration);
-      }
-      else
-      {
-         //default: all white for duration
-         ledSet (255, 255, 255);
-         delay (duration);
-         ledSet (0, 0, 0);
-      }
+    str = strtok_r (NULL, " ", &i);
+    r = atoi (str);
+    
+    r = r < 0 ? 0: r;
+    r = r > 255 ? 255: r;
+    
+    str = strtok_r (NULL, " ", &i);
+    g = atoi (str);
+    
+    g = g < 0 ? 0: g;
+    g = g > 255 ? 255: g;
+    
+    str = strtok_r (NULL, " ", &i);
+    b = atoi (str);
+    
+    b = b < 0 ? 0: b;
+    b = b > 255 ? 255: b;
+    
+    str = strtok_r (NULL, " ", &i);
+    duration = atoi (str);
+    
+    duration = duration < 1 ? 1: duration;
+    duration = duration > 9999 ? 9999: duration;      
+    
+    //only supports three effects at the moment
+    if (0 == strcmp(effect, "flash"))
+    {
+      // turns LEDs on then off
+      ledFlash (ledChip, r, g, b, duration);
+    }
+    else if (0 == strcmp (effect, "wave"))
+    {
+      // activates the lights on a chip one at a time from top to bottom
+      ledWave (ledChip, r, g, b, duration);
+    }
+    else if (0 == strcmp (effect, "alt"))
+    {
+      // alternates colors rapidly. Alternates with the color used during the
+      // last call
+      ledAlternate (ledChip, r, g, b, duration);
+    }
+    else
+    {
+       //default: all white for duration
+       ledSet (255, 255, 255);
+       delay (duration);
+       ledSet (0, 0, 0);
     }
     
-    myFile.close();
-  } 
-  else
-  {
-    success = false;
-    error(1); //throw a generic error
+    index++;
   }
-  
-  SD.chvol();
   
   return success;
 }
@@ -790,7 +839,7 @@ void ledWave (byte leds, byte r, byte g, byte b, unsigned long duration)
       strand1.show ();
       strand2.show ();
       
-      delay (100);
+      delay (75);
       
       strand1.setColor (i, 0, 0, 0);
       strand1.setColor (NLED - 1  - i, 0, 0, 0);
@@ -877,35 +926,40 @@ void ledSet (byte r, byte g, byte b)
 }
 
 void writeToLog(String entry)
-{
+{  
   DateTime now = RTC.now();
   
   SdFile log;
-
-  loggingSD.chvol();
-  loggingSD.chdir("../");
   
-  if (log.open("activity.log", O_RDWR | O_CREAT | O_AT_END))
+  //If the logging SD card is absent or never got set up correctly
+  //then don't worry about trying to log anything
+  if (!loggingSDSetupFailed)
   {
-    log.print(now.month(), DEC);
-    log.print('-');
-    log.print(now.day(), DEC);
-    log.print('-');
-    log.print(now.year(), DEC);
-    log.print(' ');
-    log.print(now.hour(), DEC);
-    log.print (':');
-    if (now.minute() < 10) log.print ('0');
-    log.print(now.minute(), DEC);
-    log.print (':');
-    if (now.second() < 10) log.print ('0');
-    log.print(now.second(), DEC);
-    log.print ("> ");
-    log.println (entry);
-    log.close();
+    loggingSD.chvol();
+    loggingSD.chdir();
+    
+    if (log.open("activity.log", O_RDWR | O_CREAT | O_AT_END))
+    {
+      log.print(now.month(), DEC);
+      log.print('-');
+      log.print(now.day(), DEC);
+      log.print('-');
+      log.print(now.year(), DEC);
+      log.print(' ');
+      log.print(now.hour(), DEC);
+      log.print (':');
+      if (now.minute() < 10) log.print ('0');
+      log.print(now.minute(), DEC);
+      log.print (':');
+      if (now.second() < 10) log.print ('0');
+      log.print(now.second(), DEC);
+      log.print ("> ");
+      log.println (entry);
+      log.close();
+    }
+  
+    SD.chvol();
   }
-
-  SD.chvol();
   
 }
 
@@ -1032,7 +1086,7 @@ boolean isNight (boolean isSensitive)
   if (useRTCForDay ())
   {
     DateTime now = RTC.now();
-    if (4 < now.hour() && 8 > now.hour ())
+    if (4 < now.hour() && 20 > now.hour ())
     {
       rtcDay = true;
     }
@@ -1118,11 +1172,11 @@ int getVolume ()
 
   if (!value) // default == loud
   {
-    volume = 0;
+    volume = 5;
   }
   else
   {
-    volume = 75;
+    volume = 100;
   }
 
   return volume;
