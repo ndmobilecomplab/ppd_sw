@@ -37,13 +37,14 @@
 #define LOGGING_SDCS 6
 
 //ERROR CODES
-#define LED_FAILURE              -1 //now way for this to be thrown with the current library
-#define SOUND_FAILURE            -2
-#define LIGHT_SENSOR_FAILURE     -3 //can be thrown accidentally if sensors are completely covered
-#define SWITCH_FAILURE           -4 //will not be thrown at the moment -> maybe eventually add self test?
-#define SOUND_SD_CARD_FAILURE    -5
-#define LOGGING_SD_CARD_FAILURE  -6
-#define RTC_FAILURE              -7
+#define GENERIC_ERROR            0
+#define LED_FAILURE              1 //no way for this to be thrown with the current library
+#define SOUND_FAILURE            2
+#define LIGHT_SENSOR_FAILURE     3 //can be thrown accidentally if sensors are completely covered
+#define SWITCH_FAILURE           4 //will not be thrown at the moment -> maybe eventually add self test?
+#define SOUND_SD_CARD_FAILURE    5
+#define LOGGING_SD_CARD_FAILURE  6
+#define RTC_FAILURE              7
 
 #define MINUTE 60000
 
@@ -63,16 +64,18 @@ SdFat loggingSD;
 
 boolean verboseLogging = false;
 
-char * * patternFiles = NULL; //expected to be found at loggingSD://patterns/
+char * * patternFiles = NULL; //expected to be found at SD://patterns/
 char * * soundFiles = NULL; //expected to be found at SD://
 int numPatternFiles;
 int numSoundFiles;
 
-boolean setupSuccessful = true;
+//boolean setupSuccessful = true;
 boolean ledFailed = false;
 boolean ignoreSetupErrors = false;
 
 boolean loggingSDSetupFailed = false;
+
+boolean failure[8] = {false, false, false, false, false, false, false, false}; //corresponds to errors above;
 
 int overrideMode = -1;
 int overrideSensitivity = -1;
@@ -89,29 +92,22 @@ struct pattern
   char lines[50][32];
 };
 
-//typedef struct pattern blaw;
-
-void setup ()
+boolean initComponents()
 {
-  Serial.begin (9600);
-  randomSeed(analogRead(0));
+    boolean setupSuccessful = true;
   
-  do
-  {
-    setupSuccessful = true;
-    
     pinMode (LOGGING_SDCS, OUTPUT);
     digitalWrite (LOGGING_SDCS, HIGH);  
     
     if (!rtcSetup())
     {
-      error (RTC_FAILURE);
+      failure[RTC_FAILURE] = true;
       setupSuccessful = false;
     }
     
     if (! SD.begin(BREAKOUT_SDCS)){
-      Serial.println(F("sound SD card setup failed."));
-      error (SOUND_SD_CARD_FAILURE);
+      //Serial.println(F("sound SD card setup failed."));
+      failure[SOUND_SD_CARD_FAILURE] = true;
       setupSuccessful = false;
     }
     else
@@ -121,34 +117,32 @@ void setup ()
          
     if (!loggingSD.begin(LOGGING_SDCS))
     {
-      Serial.println(F("logging SD card setup failed."));
-      error (LOGGING_SD_CARD_FAILURE);
-      loggingSDSetupFailed = true;
+      //Serial.println(F("logging SD card setup failed."));
+      failure[LOGGING_SD_CARD_FAILURE] = true;
+//      error (LOGGING_SD_CARD_FAILURE);
+//      loggingSDSetupFailed = true;
       setupSuccessful = false;
     }
     else
     {
-       loggingSDSetupFailed = false;
        loggingSD.ls(); 
     }
    
     //LEDs
     if (! ledSetup(BRIGHTNESS)){
-      Serial.println(F("LED setup failed."));
-      writeToLog("LED setup failed.");  
-      ledFailed = true;
+      //Serial.println(F("LED setup failed."));
+      writeToLog("LED setup failed.");
+//      ledFailed = true;
       setupSuccessful = false;
-    }
-    else {
-      ledWave(B1111, 255, 255, 255, 1000);
-      ledSet(0,0,0);
+      failure[LED_FAILURE] = true;
     }
     
     //MP3 Player
     if (! musicPlayer.begin()){
-      Serial.println(F("Speakers and MP3 player setup failed."));
+      //Serial.println(F("Speakers and MP3 player setup failed."));
       writeToLog ("Speakers and MP3 player setup failed.");
-      error (SOUND_FAILURE);
+      failure[SOUND_FAILURE] = true;
+      //error (SOUND_FAILURE);
       setupSuccessful = false;
     }
     else {
@@ -156,41 +150,63 @@ void setup ()
       musicPlayer.setVolume(volume, volume);
       musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
       //musicPlayer.sineTest(0x44, 1000);
-      
-      if (ledFailed)
-      {
-        error (LED_FAILURE); 
-      }
     }
     
     //Light sensors
     if (!lightSensorSetup()){
-      Serial.println(F("Light sensor setup failed."));
-      writeToLog ("Light sensor setup failed."); 
-      error (LIGHT_SENSOR_FAILURE);
+      //Serial.println(F("Light sensor setup failed."));
+      writeToLog ("Light sensor setup failed. One or both registered 0."); 
+      failure[LIGHT_SENSOR_FAILURE] = true;
+      //error (LIGHT_SENSOR_FAILURE);
       setupSuccessful = false;
     }
   
     //Switches
     if (!switchSetup()){
-      Serial.println(F("Switch setup failed."));
+      //Serial.println(F("Switch setup failed."));
       writeToLog("Switch setup failed.");  
-      error (SWITCH_FAILURE);
+      failure[SWITCH_FAILURE] = true;
+      //error (SWITCH_FAILURE);
       setupSuccessful = false;
     }
+    
+    return setupSuccessful;
+}
 
-    loadAndRunDebug(); // only early options can run. for now this only means the ignore errors setting
-    
-    delay (3000);
-    
-  } while (!setupSuccessful && !ignoreSetupErrors);
+void test()
+{   
+  if (initComponents())
+  {
+    ledSet (0, 255, 0);
+    delay (500);
+    ledSet (0, 0, 0);
+  }
+  else
+  {
+    for (int i = 0; i < 8; i++)
+    {
+        if (failure[i])
+        {
+          error (i);
+          delay(3000);
+          failure[i] = false; 
+        }
+    }
+  }  
+}
+
+//typedef struct pattern blaw;
+
+void setup ()
+{
+  Serial.begin (9600);
+  randomSeed(analogRead(0));
+  
+  initComponents ();
 
   loadSoundAndPatternNames ();  
 
   writeToLog ("booted successfully");
-  ledSet (0, 255, 0);
-  delay (500);
-  ledSet (0, 0, 0);
 
   loadAndRunDebug();
 
@@ -270,6 +286,11 @@ void loop ()
       waitInterval = 10 * MINUTE;
       start = millis();
     }
+  }
+  
+  if (startTest())
+  {
+     test(); 
   }
 }
 
@@ -496,14 +517,6 @@ void loadAndRunDebug ()
          }
          // none of the following should not be used by end users
          // they are primarily intended for bench/assembly testing
-         else if (0 == strcmp (line, "ignore errors") && earlyRun)
-         {
-            if (verboseLogging)
-            {
-              writeToLog ("ignoring any errors during setup");
-            }
-            ignoreSetupErrors = true;
-         }
          else if (strstr(line, "mode="))
          {
             str = strtok_r(line, "=", &i);
@@ -933,7 +946,7 @@ void writeToLog(String entry)
   
   //If the logging SD card is absent or never got set up correctly
   //then don't worry about trying to log anything
-  if (!loggingSDSetupFailed)
+  if (!failure[LOGGING_SD_CARD_FAILURE])
   {
     loggingSD.chvol();
     loggingSD.chdir();
@@ -1034,16 +1047,11 @@ void error(int errorCode)
     writeToLog ("Error occurred. Error: " + String (errorCode));
   }
   
+  musicPlayer.setVolume(50,50);
+  
   switch (errorCode)
   {
     case LED_FAILURE:
-      musicPlayer.setVolume(10,10);
-      for (int i = 0; i < 3; i++)
-      {
-        musicPlayer.sineTest(0x44, 1000);
-        delay (500);
-      }
-      break;
     case SOUND_FAILURE:
     case LIGHT_SENSOR_FAILURE:
     case SWITCH_FAILURE:
@@ -1052,9 +1060,10 @@ void error(int errorCode)
     case RTC_FAILURE:
       for (int i = 0; i < 3; i++)
       {
-        for (int j = 0; j < -errorCode; j++)
+        for (int j = 0; j < errorCode; j++)
         {
           ledSet (255, 0, 0);
+          musicPlayer.sineTest(0x44, 1000);
           delay(500);
           ledSet (0, 0, 0);
           delay(500);
@@ -1063,15 +1072,18 @@ void error(int errorCode)
       }
       break;
     default:
+      musicPlayer.sineTest(0x44, 1000);
       for (int i = 0; i < 3; i++)
-        {
-          ledSet (255, 255, 0);
-          delay(500);
-          ledSet (0, 0, 0);
-          delay(500);
-        } 
-      
-  } 
+      {
+        ledSet (255, 255, 0);
+        delay(500);
+        ledSet (0, 0, 0);
+        delay(500);
+      } 
+      musicPlayer.sineTest(0x44, 1000); 
+  }
+  
+  musicPlayer.setVolume(volume,volume);
 }
 
 boolean isNight (boolean isSensitive)
@@ -1147,9 +1159,15 @@ int getInterval ()
   //S6, S7
   int interval;
   int intervalMultiplier = digitalRead(S6) << 1;
-  intervalMultiplier |= digitalRead(S7);
-
-  interval = 5 + (intervalMultiplier * 5);
+  
+  if (digitalRead(S6))
+  {
+    interval = 15; 
+  }
+  else
+  {
+    interval = 5;
+  }
 
   if (overrideInterval >= 0)
   {
@@ -1185,5 +1203,20 @@ int getVolume ()
 boolean useRTCForDay()
 {
   return digitalRead(S3);
+}
+
+boolean startTest()
+{
+  if (digitalRead(S7))
+  {
+    delay (50);
+    
+    if (digitalRead(S7))
+    {
+      return true; 
+    }
+  } 
+  
+  return false;
 }
 
