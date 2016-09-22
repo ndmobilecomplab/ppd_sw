@@ -155,7 +155,7 @@ void setup ()
       //Rest of speaker setup
       musicPlayer.setVolume(volume, volume);
       musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
-      musicPlayer.sineTest(0x44, 1000);
+      //musicPlayer.sineTest(0x44, 1000);
       
       if (ledFailed)
       {
