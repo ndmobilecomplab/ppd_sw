@@ -270,7 +270,7 @@ void loop ()
 
       actionStart = millis();
 
-      while (!musicPlayer.stopped() && MINUTE / 2 >= millis() - actionStart)
+      while (!musicPlayer.stopped() && MINUTE / 4 >= millis() - actionStart)
       {
         if (0x1 & mode)
         { 
