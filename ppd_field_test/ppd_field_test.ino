@@ -182,9 +182,8 @@ void test()
 {   
   if (initComponents(true))
   {
-    musicPlayer.sineTest(0x44, 1000);
     ledSet (0, 255, 0);
-    delay (500);
+    musicPlayer.sineTest(0x44, 1000);
     ledSet (0, 0, 0);
   }
   else
