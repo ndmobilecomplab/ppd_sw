@@ -149,7 +149,6 @@ boolean initComponents()
       //Rest of speaker setup
       musicPlayer.setVolume(volume, volume);
       musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);
-      //musicPlayer.sineTest(0x44, 1000);
     }
     
     //Light sensors
@@ -177,9 +176,14 @@ void test()
 {   
   if (initComponents())
   {
+    musicPlayer.setVolume (100, 20);
+    musicPlayer.sineTest(0x44, 1000);
+    musicPlayer.setVolume (20, 100);
+    musicPlayer.sineTest(0x44, 1000);
     ledSet (0, 255, 0);
     delay (500);
     ledSet (0, 0, 0);
+    musicPlayer.setVolume (volume, volume);
   }
   else
   {
@@ -253,7 +257,8 @@ void loop ()
         writeToLog("Playing " + String (soundFiles[soundIndex]));
         if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
         {
-           Serial.println ("problem with player"); 
+           writeToLog ("Problem with playing file.");
+           error(0);//generic error 
         }
       }
 
@@ -1209,7 +1214,7 @@ boolean startTest()
 {
   if (digitalRead(S7))
   {
-    delay (50);
+    delay (75);
     
     if (digitalRead(S7))
     {
