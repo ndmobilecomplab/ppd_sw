@@ -1,6 +1,6 @@
 PREDATOR PROTECTION DEVICE (Gen 2): MANUAL
 Josh Siva, University of Notre Dame
-August 2016
+September 2016
 
 Use:
 ----
@@ -14,23 +14,32 @@ panel while it's inactive. Once the device detects that it is night time, it
 will become active.
 
 Startup- When the device first receives power (either from charging
-sufficiently or being plugged in) the various components are initialized. In
-the event of a failure, the lights will blink red in a specified pattern three
-times before the device attempts to start up again from the beginning (see
-Error Codes for more details). If the device is set up successfully then the 
-lights will blink green. If this does not happen then there may be an issue
-with the LEDs.
+sufficiently or being plugged in) the various components are initialized. The
+device starts up silently, but to check whether the device is functioning
+correctly, one can flip the test switch. In the event of a failure, the lights
+will blink red in a specified pattern three times (see Error Codes for more 
+details).
 
 Charging- The device must spend the maximum amount of time in the sun each
-day if it is going to maintain a sufficient charge.
+day if it is going to maintain a sufficient charge. If a device is behaving
+strangely or does not appear to be charging sufficiently, then turn the power
+off and continue to charge it.
 
 Switches- The function of each switch is as follows:
+Power
+Volume (low/high)
+Light sensitivity (low/high)
+Use RTC for day (yes/no)
 
-SD cards- The SD card closest to the lid is the sound SD card and it contains
-          the sounds that will be played. The other SD card located further
-          from the lid is the logging SD card which contains the activity log
-          for the device as well as files defining the light patterns to be
-          used.
+Sound during event (yes/no)
+Lights during event (yes/no)
+Interval (5min/15min)
+Test (start/-)
+
+SD cards- The SD card closest to the lid is the media SD card and it contains
+          the sounds and light patterns that will be played. The other SD card 
+	  located further from the lid is the logging SD card which contains the
+	  activity log for the device
 
 Error Codes:
 ------------
@@ -40,7 +49,7 @@ times before the device reboots.
 
 Sound failure		- 2 blinks
 Light sensor failure	- 3 blinks
-Sound SD card failure	- 5 blinks
+Media SD card failure	- 5 blinks
 Logging SD card failure	- 6 blinks
 RTC failure		- 7 blinks
 
@@ -92,7 +101,7 @@ Advanced Use:
    1010 flash 255 255 0 1000
    1001 flash 255 255 0 1000
 
-   You can change all of them as well:
+   You can change all of them at the same time as well:
    1111 wave 0 0 255 1500
 
    Effects explained:
@@ -109,7 +118,7 @@ Advanced Use:
 >> Debugging/Troubleshooting
    If the device is malfunctioning then it is possible for an advanced user to
    change how the device runs/starts up so that they can run through some
-   troubleshooting tests. These tests should help a user figure out what is
+   troubleshooting tests. These tests should help a user figure out what
    components are failing. To enable debugging, you must add a file to the logging
    SD card called "debug.txt" containing the indicated text. Note that you can
    run as many of these tests as you want and can loop through the tests
@@ -124,7 +133,7 @@ Advanced Use:
           Use the text "debug sound"
 
    Switches- During this test the LEDs will start out yellow, and then as each
-             switch is flipped will turn more and more green. The test is passed
+             switch is flipped will turn more and more purple. The test is passed
              if the lights blink green twice.
              Use the text "debug switches"
 
