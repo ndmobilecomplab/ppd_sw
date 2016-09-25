@@ -1,0 +1,1 @@
+~/ffmpeg -i track002original.mp3 -af "volume=10dB" -q:a 2 -f mp3 shouting_10dB.mp3
