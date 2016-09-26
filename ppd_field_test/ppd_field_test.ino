@@ -1207,7 +1207,7 @@ int getVolume ()
 
   if (value) // default == loud
   {
-    volume = 20;
+    volume = 30;
   }
   else
   {
