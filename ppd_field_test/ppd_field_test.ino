@@ -372,9 +372,10 @@ void debugSound()
 
   ledSet (0, 255, 0);
   delay (1000);
+  ledSet (0, 0, 0);
   
   musicPlayer.stopPlaying();
-  musicPlayer.setVolume (5, 5);
+  musicPlayer.setVolume (volume, volume);
 }
 
 //lights will change colors to indicate a successfully detected switch flip
@@ -1196,7 +1197,7 @@ int getVolume ()
   byte value = digitalRead(S1);
   int volume = 0;
 
-  if (!value) // default == loud
+  if (value) // default == loud
   {
     volume = 20;
   }
@@ -1215,11 +1216,11 @@ boolean useRTCForDay()
 
 boolean startTest()
 {
-  if (digitalRead(S7))
+  if (!digitalRead(S7))
   {
     delay (75);
     
-    if (digitalRead(S7))
+    if (!digitalRead(S7))
     {
       return true; 
     }
