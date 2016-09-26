@@ -1014,6 +1014,8 @@ boolean ledSetup(int brightness){
     strand2.begin();
     strand2.setBrightness(brightness);
     strand2.show();
+
+    ledSet (0, 0, 0);
     
     return true;
 }
