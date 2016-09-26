@@ -285,7 +285,7 @@ void loop ()
       
       baseInterval = getInterval ();
 
-      adjustment = random(-(baseInterval/5)*2,(baseInterval/5)*2 + 1);
+      adjustment = random(-(baseInterval-3),(baseInterval-3) + 1);
       //Serial.println ("Adjustment is " + String(adjustment));
       waitInterval = (baseInterval + adjustment) * MINUTE;
       start = millis();
@@ -452,7 +452,6 @@ void debugSensors()
 // purposes
 void loadAndRunDebug ()
 {
-  static boolean earlyRun = true;
   SdFile myFile;
   char line[32];
   int index;
@@ -481,7 +480,7 @@ void loadAndRunDebug ()
             index--;
          }
          
-         if (0 == strcmp(line, "debug sound") && !earlyRun)
+         if (0 == strcmp(line, "debug sound"))
          {
            if (verboseLogging)
            {
@@ -489,7 +488,7 @@ void loadAndRunDebug ()
            }
            debugSound(); 
          }
-         else if (0 == strcmp(line, "debug switches") && !earlyRun)
+         else if (0 == strcmp(line, "debug switches"))
          {
            if (verboseLogging)
            {
@@ -497,7 +496,7 @@ void loadAndRunDebug ()
            }
            debugSwitches();
          }
-         else if (0 == strcmp(line, "debug sensors") && !earlyRun)
+         else if (0 == strcmp(line, "debug sensors"))
          {
            if (verboseLogging)
            {
@@ -505,7 +504,7 @@ void loadAndRunDebug ()
            }
            debugSensors();
          }
-         else if (0 == strcmp(line, "play all sounds") && !earlyRun)
+         else if (0 == strcmp(line, "play all sounds"))
          {
           if (verboseLogging)
            {
@@ -513,7 +512,7 @@ void loadAndRunDebug ()
            }
            playAllSounds();
          }
-         else if (0 == strcmp (line, "play all patterns") && !earlyRun)
+         else if (0 == strcmp (line, "play all patterns"))
          {
            if (verboseLogging)
            {
@@ -521,7 +520,7 @@ void loadAndRunDebug ()
            }
            playAllPatterns();
          }
-         else if (0 == strcmp (line, "verbose logging") && earlyRun)
+         else if (0 == strcmp (line, "verbose logging"))
          {
            verboseLogging = true; 
            writeToLog("Verbose logging turned on");
@@ -564,7 +563,7 @@ void loadAndRunDebug ()
               writeToLog("interval set to " + String(overrideInterval));
             }
          }
-         else if (0 == strcmp (line, "repeat") && !earlyRun)
+         else if (0 == strcmp (line, "repeat"))
          {
            repeat = true;
          }
@@ -576,8 +575,6 @@ void loadAndRunDebug ()
   {
     writeToLog("no debug file"); 
   }
-
-  earlyRun = false;
   
   SD.chvol();
 }
