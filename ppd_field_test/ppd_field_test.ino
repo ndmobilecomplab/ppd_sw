@@ -253,7 +253,7 @@ void loop ()
         if (getVolume () != volume)
         {
           volume = getVolume ();
-          musicPlayer.setVolume (volume, volume);
+          musicPlayer.setVolume (volume, 100);
         }
         
         writeToLog("Playing " + String (soundFiles[soundIndex]));
@@ -272,6 +272,11 @@ void loop ()
 
       while (!musicPlayer.stopped() && MINUTE / 4 >= millis() - actionStart)
       {
+        if (MINUTE / 8 <= millis() - actionStart)
+        {
+          musicPlayer.setVolume (100, volume);
+        }
+        
         if (0x1 & mode)
         { 
           playPattern(myPattern);
@@ -285,7 +290,7 @@ void loop ()
       
       baseInterval = getInterval ();
 
-      adjustment = random(-(baseInterval-3),(baseInterval-3) + 1);
+      adjustment = random(-(baseInterval/5)*2,(baseInterval/5)*2 + 1);
       //Serial.println ("Adjustment is " + String(adjustment));
       waitInterval = (baseInterval + adjustment) * MINUTE;
       start = millis();
@@ -453,6 +458,7 @@ void debugSensors()
 // purposes
 void loadAndRunDebug ()
 {
+  static boolean earlyRun = true;
   SdFile myFile;
   char line[32];
   int index;
@@ -481,7 +487,7 @@ void loadAndRunDebug ()
             index--;
          }
          
-         if (0 == strcmp(line, "debug sound"))
+         if (0 == strcmp(line, "debug sound") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -489,7 +495,7 @@ void loadAndRunDebug ()
            }
            debugSound(); 
          }
-         else if (0 == strcmp(line, "debug switches"))
+         else if (0 == strcmp(line, "debug switches") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -497,7 +503,7 @@ void loadAndRunDebug ()
            }
            debugSwitches();
          }
-         else if (0 == strcmp(line, "debug sensors"))
+         else if (0 == strcmp(line, "debug sensors") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -505,7 +511,7 @@ void loadAndRunDebug ()
            }
            debugSensors();
          }
-         else if (0 == strcmp(line, "play all sounds"))
+         else if (0 == strcmp(line, "play all sounds") && !earlyRun)
          {
           if (verboseLogging)
            {
@@ -513,7 +519,7 @@ void loadAndRunDebug ()
            }
            playAllSounds();
          }
-         else if (0 == strcmp (line, "play all patterns"))
+         else if (0 == strcmp (line, "play all patterns") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -521,7 +527,7 @@ void loadAndRunDebug ()
            }
            playAllPatterns();
          }
-         else if (0 == strcmp (line, "verbose logging"))
+         else if (0 == strcmp (line, "verbose logging") && earlyRun)
          {
            verboseLogging = true; 
            writeToLog("Verbose logging turned on");
@@ -564,7 +570,7 @@ void loadAndRunDebug ()
               writeToLog("interval set to " + String(overrideInterval));
             }
          }
-         else if (0 == strcmp (line, "repeat"))
+         else if (0 == strcmp (line, "repeat") && !earlyRun)
          {
            repeat = true;
          }
@@ -576,6 +582,8 @@ void loadAndRunDebug ()
   {
     writeToLog("no debug file"); 
   }
+
+  earlyRun = false;
   
   SD.chvol();
 }
@@ -1171,7 +1179,7 @@ int getInterval ()
   
   if (digitalRead(S6))
   {
-    interval = 20; 
+    interval = 15; 
   }
   else
   {
