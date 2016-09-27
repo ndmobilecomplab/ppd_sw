@@ -285,7 +285,7 @@ void loop ()
       
       baseInterval = getInterval ();
 
-      adjustment = random(-(baseInterval-3),(baseInterval-3) + 1);
+      adjustment = random(-(baseInterval/5)*2.5,(baseInterval/5)*2.5 + 1);
       //Serial.println ("Adjustment is " + String(adjustment));
       waitInterval = (baseInterval + adjustment) * MINUTE;
       start = millis();
@@ -1171,7 +1171,7 @@ int getInterval ()
   
   if (digitalRead(S6))
   {
-    interval = 20; 
+    interval = 10; 
   }
   else
   {
@@ -1216,12 +1216,15 @@ boolean useRTCForDay()
 
 boolean startTest()
 {
+  static boolean lastVal = digitalRead(S7);
+  
   if (!digitalRead(S7))
   {
     delay (75);
     
-    if (!digitalRead(S7))
+    if (!digitalRead(S7) && lastVal)
     {
+      lastVal = digitalRead(S7);
       return true; 
     }
   } 
