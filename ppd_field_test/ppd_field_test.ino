@@ -222,6 +222,7 @@ void setup ()
 
 void loop ()
 {
+  
   byte mode;
   int soundIndex = -1;
   int patternIndex = -1;
@@ -1222,11 +1223,17 @@ boolean startTest()
   {
     delay (75);
     
-    if (!digitalRead(S7) && lastVal)
+    if (digitalRead(S7) && !lastVal)
     {
+      lastVal = digitalRead(S7);
+      return false; 
+    }
+    else if (!digitalRead(S7) && lastVal) {
       lastVal = digitalRead(S7);
       return true; 
     }
+    
+    
   } 
   
   return false;
