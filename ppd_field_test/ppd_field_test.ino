@@ -222,6 +222,7 @@ void setup ()
 
 void loop ()
 {
+  
   byte mode;
   int soundIndex = -1;
   int patternIndex = -1;
@@ -1218,14 +1219,23 @@ boolean useRTCForDay()
 
 boolean startTest()
 {
+  static boolean lastVal = digitalRead(S7);
+  
   if (!digitalRead(S7))
   {
     delay (75);
     
-    if (!digitalRead(S7))
+    if (digitalRead(S7) && !lastVal)
     {
+      lastVal = digitalRead(S7);
+      return false; 
+    }
+    else if (!digitalRead(S7) && lastVal) {
+      lastVal = digitalRead(S7);
       return true; 
     }
+    
+    
   } 
   
   return false;
