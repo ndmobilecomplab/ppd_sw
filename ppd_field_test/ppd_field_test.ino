@@ -222,6 +222,7 @@ void setup ()
 
 void loop ()
 {
+  
   byte mode;
   int soundIndex = -1;
   int patternIndex = -1;
@@ -290,7 +291,8 @@ void loop ()
       
       baseInterval = getInterval ();
 
-      adjustment = random(-(baseInterval/5)*2,(baseInterval/5)*2 + 1);
+      adjustment = random(-(baseInterval/5)*2.5,(baseInterval/5)*2.5 + 1);
+      
       //Serial.println ("Adjustment is " + String(adjustment));
       waitInterval = (baseInterval + adjustment) * MINUTE;
       start = millis();
@@ -1022,6 +1024,8 @@ boolean ledSetup(int brightness){
     strand2.begin();
     strand2.setBrightness(brightness);
     strand2.show();
+
+    ledSet (0, 0, 0);
     
     return true;
 }
@@ -1179,7 +1183,7 @@ int getInterval ()
   
   if (digitalRead(S6))
   {
-    interval = 15; 
+    interval = 10; 
   }
   else
   {
@@ -1224,14 +1228,23 @@ boolean useRTCForDay()
 
 boolean startTest()
 {
+  static boolean lastVal = digitalRead(S7);
+  
   if (!digitalRead(S7))
   {
     delay (75);
     
-    if (!digitalRead(S7))
+    if (digitalRead(S7) && !lastVal)
     {
+      lastVal = digitalRead(S7);
+      return false; 
+    }
+    else if (!digitalRead(S7) && lastVal) {
+      lastVal = digitalRead(S7);
       return true; 
     }
+    
+    
   } 
   
   return false;
