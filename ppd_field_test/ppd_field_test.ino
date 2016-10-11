@@ -7,6 +7,9 @@
 #include <Wire.h>
 #include <RTClib.h>
 #include <MemoryFree.h>
+#include <avr/sleep.h>
+#include <avr/power.h>
+#include <avr/wdt.h>
 
 //Constants
 #define LEDPIN1 27          //Pin for first LED strand
@@ -48,6 +51,8 @@
 
 #define MINUTE 60000
 
+volatile bool watchdogActivated = false;
+int sleepIterations = 0;
 
 //Initialize LED strands
 NS_Rainbow strand1 = NS_Rainbow(NLED, LEDPIN1);
@@ -92,6 +97,35 @@ struct pattern
   char lines[50][32];
 };
 
+// Define watchdog timer interrupt.
+ISR(WDT_vect)
+{
+  // Set the watchdog activated flag.
+  // Note that you shouldn't do much work inside an interrupt handler.
+  watchdogActivated = true;
+}
+
+// Put the Arduino to sleep.
+void sleep()
+{
+  // Set sleep to full power down.  Only external interrupts or 
+  // the watchdog timer can wake the CPU!
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+
+  // Turn off the ADC while asleep.
+  power_adc_disable();
+
+  // Enable sleep and enter sleep mode.
+  sleep_mode();
+
+  // CPU is now asleep and program execution completely halts!
+  // Once awake, execution will resume at this point.
+  
+  // When awake, disable sleep mode and turn on all devices.
+  sleep_disable();
+  power_all_enable();
+}
+
 boolean initComponents(boolean isTest = false)
 {
     boolean setupSuccessful = true;
@@ -132,6 +166,8 @@ boolean initComponents(boolean isTest = false)
       {
          loggingSD.ls(); 
       }
+
+      initWatchdog();
     }
    
     //LEDs
@@ -230,80 +266,93 @@ void loop ()
   int adjustment = 0;
   unsigned long actionStart;
   struct pattern myPattern;
-  
-  if (millis() - start > waitInterval)
-  { 
-    if (isNight(isSensitive()))
-    {
-      mode = getMode();
-      
-      if (0x1 & mode)
-      {
-        patternIndex = random(0,numPatternFiles);
-        if (!loadPattern (patternFiles[patternIndex], myPattern))
-        {
-           failure[MEDIA_SD_CARD_FAILURE] = true; 
-        }
-        writeToLog("Using pattern: " + String (patternFiles[patternIndex]));
-      }
-      
-      if (0x2 & mode)
-      {
-        soundIndex = random(0, numSoundFiles);
-        
-        if (getVolume () != volume)
-        {
-          volume = getVolume ();
-          musicPlayer.setVolume (volume, volume);
-        }
-        
-        writeToLog("Playing " + String (soundFiles[soundIndex]));
-        if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
-        {
-           writeToLog ("Problem with playing file.");
-           //should throw both errors because we don't know *exactly*
-           //what is to blame
-           failure[MEDIA_SD_CARD_FAILURE] = true;
-           failure[SOUND_FAILURE] = true;
-           error(0);//generic error 
-        }
-      }
 
-      actionStart = millis();
-
-      while (!musicPlayer.stopped() && MINUTE / 4 >= millis() - actionStart)
-      {
-        if (0x1 & mode)
-        { 
-          playPattern(myPattern);
-        }
-      }
-
-      if (0x2 & mode || !musicPlayer.stopped())
-      {
-        musicPlayer.stopPlaying();
-      }
-      
-      baseInterval = getInterval ();
-
-      adjustment = random(-(baseInterval/5)*2.5,(baseInterval/5)*2.5 + 1);
-      //Serial.println ("Adjustment is " + String(adjustment));
-      waitInterval = (baseInterval + adjustment) * MINUTE;
-      start = millis();
-      
-    }
-    else
-    {
-      writeToLog ("Daytime");
-      waitInterval = 10 * MINUTE;
-      start = millis();
-    }
-  }
-  
-  if (startTest())
+  if (watchdogActivated)
   {
-     test(); 
+    watchdogActivated = false;
+
+    if (millis() - start > waitInterval)
+    { 
+      if (isNight(isSensitive()))
+      {
+        mode = getMode();
+        
+        if (0x1 & mode)
+        {
+          patternIndex = random(0,numPatternFiles);
+          if (!loadPattern (patternFiles[patternIndex], myPattern))
+          {
+             failure[MEDIA_SD_CARD_FAILURE] = true; 
+          }
+          writeToLog("Using pattern: " + String (patternFiles[patternIndex]));
+        }
+        
+        if (0x2 & mode)
+        {
+          soundIndex = random(0, numSoundFiles);
+          
+          if (getVolume () != volume)
+          {
+            volume = getVolume ();
+            musicPlayer.setVolume (volume, 100);
+          }
+          
+          writeToLog("Playing " + String (soundFiles[soundIndex]));
+          if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
+          {
+             writeToLog ("Problem with playing file.");
+             //should throw both errors because we don't know *exactly*
+             //what is to blame
+             failure[MEDIA_SD_CARD_FAILURE] = true;
+             failure[SOUND_FAILURE] = true;
+             error(0);//generic error 
+          }
+        }
+  
+        actionStart = millis();
+  
+        while (!musicPlayer.stopped() && MINUTE / 4 >= millis() - actionStart)
+        {
+          if (MINUTE / 8 <= millis() - actionStart)
+          {
+            musicPlayer.setVolume (100, volume);
+          }
+          
+          if (0x1 & mode)
+          { 
+            playPattern(myPattern);
+          }
+        }
+  
+        if (0x2 & mode || !musicPlayer.stopped())
+        {
+          musicPlayer.stopPlaying();
+        }
+        
+        baseInterval = getInterval ();
+  
+        adjustment = random(-(baseInterval/5)*2.5,(baseInterval/5)*2.5 + 1);
+        
+        //Serial.println ("Adjustment is " + String(adjustment));
+        waitInterval = (baseInterval + adjustment) * MINUTE;
+        start = millis();
+        
+      }
+      else
+      {
+        writeToLog ("Daytime");
+        waitInterval = 10 * MINUTE;
+        start = millis();
+      }
+    }
+    
+    if (startTest())
+    {
+       test(); 
+    }    
   }
+  
+  sleep();
 }
 
 // plays all sounds on the sound SD card for 10 seconds
@@ -454,6 +503,7 @@ void debugSensors()
 // purposes
 void loadAndRunDebug ()
 {
+  static boolean earlyRun = true;
   SdFile myFile;
   char line[32];
   int index;
@@ -482,7 +532,7 @@ void loadAndRunDebug ()
             index--;
          }
          
-         if (0 == strcmp(line, "debug sound"))
+         if (0 == strcmp(line, "debug sound") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -490,7 +540,7 @@ void loadAndRunDebug ()
            }
            debugSound(); 
          }
-         else if (0 == strcmp(line, "debug switches"))
+         else if (0 == strcmp(line, "debug switches") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -498,7 +548,7 @@ void loadAndRunDebug ()
            }
            debugSwitches();
          }
-         else if (0 == strcmp(line, "debug sensors"))
+         else if (0 == strcmp(line, "debug sensors") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -506,7 +556,7 @@ void loadAndRunDebug ()
            }
            debugSensors();
          }
-         else if (0 == strcmp(line, "play all sounds"))
+         else if (0 == strcmp(line, "play all sounds") && !earlyRun)
          {
           if (verboseLogging)
            {
@@ -514,7 +564,7 @@ void loadAndRunDebug ()
            }
            playAllSounds();
          }
-         else if (0 == strcmp (line, "play all patterns"))
+         else if (0 == strcmp (line, "play all patterns") && !earlyRun)
          {
            if (verboseLogging)
            {
@@ -522,7 +572,7 @@ void loadAndRunDebug ()
            }
            playAllPatterns();
          }
-         else if (0 == strcmp (line, "verbose logging"))
+         else if (0 == strcmp (line, "verbose logging") && earlyRun)
          {
            verboseLogging = true; 
            writeToLog("Verbose logging turned on");
@@ -565,7 +615,7 @@ void loadAndRunDebug ()
               writeToLog("interval set to " + String(overrideInterval));
             }
          }
-         else if (0 == strcmp (line, "repeat"))
+         else if (0 == strcmp (line, "repeat") && !earlyRun)
          {
            repeat = true;
          }
@@ -577,6 +627,8 @@ void loadAndRunDebug ()
   {
     writeToLog("no debug file"); 
   }
+
+  earlyRun = false;
   
   SD.chvol();
 }
@@ -1202,7 +1254,7 @@ int getVolume ()
 
   if (value) // default == loud
   {
-    volume = 20;
+    volume = 30;
   }
   else
   {
@@ -1215,6 +1267,35 @@ int getVolume ()
 boolean useRTCForDay()
 {
   return digitalRead(S3);
+}
+
+void initWatchdog ()
+{
+  // Setup the watchdog timer to run an interrupt which
+  // wakes the Arduino from sleep every 8 seconds.
+  
+  // Note that the default behavior of resetting the Arduino
+  // with the watchdog will be disabled.
+  
+  // This next section of code is timing critical, so interrupts are disabled.
+  // See more details of how to change the watchdog in the ATmega328P datasheet
+  // around page 50, Watchdog Timer.
+  noInterrupts();
+  
+  // Set the watchdog reset bit in the MCU status register to 0.
+  MCUSR &= ~(1<<WDRF);
+  
+  // Set WDCE and WDE bits in the watchdog control register.
+  WDTCSR |= (1<<WDCE) | (1<<WDE);
+
+  // Set watchdog clock prescaler bits to a value of 8 seconds.
+  WDTCSR = (1<<WDP0) | (1<<WDP3);
+  
+  // Enable watchdog as interrupt only (no reset).
+  WDTCSR |= (1<<WDIE);
+  
+  // Enable interrupts again.
+  interrupts();
 }
 
 boolean startTest()
