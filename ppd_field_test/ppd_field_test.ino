@@ -124,6 +124,7 @@ void sleep()
   // When awake, disable sleep mode and turn on all devices.
   sleep_disable();
   power_all_enable();
+  lightSensorSetup();
 }
 
 boolean initComponents(boolean isTest = false)
