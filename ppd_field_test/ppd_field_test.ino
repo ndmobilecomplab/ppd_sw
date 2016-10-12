@@ -89,6 +89,8 @@ int overrideInterval = -1;
 
 int volume = 75;
 
+int soundInterval = 0;
+
 RTC_DS3231 RTC;
 
 struct pattern
@@ -291,7 +293,7 @@ void loop ()
           }
         }
         
-        if (0x2 & mode)
+        if (0x2 & mode && 0 == soundInterval)
         {
           soundIndex = random(0, numSoundFiles);
           
@@ -319,9 +321,9 @@ void loop ()
   
         actionStart = millis();
   
-        while (!musicPlayer.stopped() && MINUTE / 4 >= millis() - actionStart)
+        while (MINUTE / 4 >= millis() - actionStart)
         {
-          if (MINUTE / 8 <= millis() - actionStart)
+          if (MINUTE / 8 <= millis() - actionStart && 0 ==  soundInterval)
           {
             musicPlayer.setVolume (100, volume);
           }
@@ -335,6 +337,15 @@ void loop ()
         if (0x2 & mode || !musicPlayer.stopped())
         {
           musicPlayer.stopPlaying();
+        }
+
+        if (0 == soundInterval)
+        {
+          soundInterval = random(0,3);
+        }
+        else
+        {
+          soundInterval--;
         }
         
         baseInterval = getInterval ();
