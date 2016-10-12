@@ -284,7 +284,10 @@ void loop ()
           {
              failure[MEDIA_SD_CARD_FAILURE] = true; 
           }
-          writeToLog("Using pattern: " + String (patternFiles[patternIndex]));
+          if (verboseLogging)
+          {
+            writeToLog("Using pattern: " + String (patternFiles[patternIndex]));
+          }
         }
         
         if (0x2 & mode)
@@ -297,7 +300,11 @@ void loop ()
             musicPlayer.setVolume (volume, 100);
           }
           
-          writeToLog("Playing " + String (soundFiles[soundIndex]));
+          if (verboseLogging)
+          {
+            writeToLog("Playing " + String (soundFiles[soundIndex]));
+          }
+          
           if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
           {
              writeToLog ("Problem with playing file.");
