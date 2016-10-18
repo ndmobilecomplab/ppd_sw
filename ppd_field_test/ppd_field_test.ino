@@ -61,7 +61,7 @@ NS_Rainbow strand2 = NS_Rainbow(NLED, LEDPIN2);
 //Initialize music player
 Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(BREAKOUT_RESET, BREAKOUT_CS, BREAKOUT_DCS, DREQ, BREAKOUT_SDCS);
 
-unsigned long start;
+unsigned long iteration;
 unsigned long waitInterval;
 
 SdFat SD; //VS1053 lib requires a global SD object because it uses the old SD lib
@@ -253,8 +253,8 @@ void setup ()
   writeToLog ("Beginning main program");
   Serial.println ("Beginning main program");
   
-  start = millis();
-  waitInterval = 0;//MINUTE / 6;  
+  iteration = 1;
+  waitInterval = 0;  
 }
 
 void loop ()
@@ -272,7 +272,7 @@ void loop ()
   {
     watchdogActivated = false;
 
-    if (millis() - start > waitInterval)
+    if (iteration > waitInterval / 8) //each sleep is 8 seconds long
     { 
       if (isNight(isSensitive()))
       {
@@ -342,17 +342,19 @@ void loop ()
         adjustment = random(-(baseInterval/5)*2.5,(baseInterval/5)*2.5 + 1);
         
         //Serial.println ("Adjustment is " + String(adjustment));
-        waitInterval = (baseInterval + adjustment) * MINUTE;
-        start = millis();
+        waitInterval = (baseInterval + adjustment) * MINUTE / 1000; //need it in seconds
+        iteration = 0;
         
       }
       else
       {
         writeToLog ("Daytime");
-        waitInterval = 10 * MINUTE;
-        start = millis();
+        waitInterval = 10 * MINUTE / 1000;
+        iteration = 0;
       }
     }
+
+    iteration++;
     
     if (startTest())
     {
