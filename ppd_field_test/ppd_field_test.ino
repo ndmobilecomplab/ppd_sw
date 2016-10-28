@@ -29,6 +29,8 @@
 #define S6 33         //Pin for switch 6
 #define S7 31         //Pin for switch 7
 
+#define MAX9744_SHDN  2
+
 #define BREAKOUT_RESET  9      // VS1053 reset pin (output)
 #define BREAKOUT_CS     10     // VS1053 chip select pin (output)
 #define BREAKOUT_DCS    8      // VS1053 Data/command select pin (output)
@@ -110,6 +112,8 @@ ISR(WDT_vect)
 // Put the Arduino to sleep.
 void sleep()
 {
+  digitalWrite(MAX9744_SHDN, LOW);
+  digitalWrite(BREAKOUT_RESET, LOW);
   // Set sleep to full power down.  Only external interrupts or 
   // the watchdog timer can wake the CPU!
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -138,6 +142,12 @@ boolean initComponents(boolean isTest = false)
     //if a file read fails.
     if (!isTest)
     {
+      pinMode (MAX9744_SHDN, OUTPUT);
+      pinMode (BREAKOUT_RESET, OUTPUT);
+      digitalWrite(MAX9744_SHDN, HIGH);
+      digitalWrite(BREAKOUT_RESET, HIGH);
+
+      
       pinMode (LOGGING_SDCS, OUTPUT);
       digitalWrite (LOGGING_SDCS, HIGH);  
       
@@ -278,6 +288,12 @@ void loop ()
     { 
       if (isNight(isSensitive()))
       {
+        //No need to wake these up until we actually need them.
+        //It also keeps the speakers from popping at the end of every sleep
+        digitalWrite(MAX9744_SHDN, HIGH);
+        digitalWrite(BREAKOUT_RESET, HIGH);
+        musicPlayer.begin();
+        
         mode = getMode();
         
         if (0x1 & mode)
