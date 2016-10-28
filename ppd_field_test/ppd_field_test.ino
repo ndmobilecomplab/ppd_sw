@@ -29,7 +29,7 @@
 #define S6 33         //Pin for switch 6
 #define S7 31         //Pin for switch 7
 
-#define MAX9744_SHDN  2
+#define MAX9744_SHDN  22
 
 #define BREAKOUT_RESET  9      // VS1053 reset pin (output)
 #define BREAKOUT_CS     10     // VS1053 chip select pin (output)
