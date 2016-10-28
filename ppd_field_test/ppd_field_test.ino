@@ -1183,7 +1183,7 @@ boolean isNight (boolean isSensitive)
   if (useRTCForDay ())
   {
     DateTime now = RTC.now();
-    if (4 < now.hour() && 20 > now.hour ())
+    if (6 < now.hour() && 18 > now.hour ())
     {
       rtcDay = true;
     }
