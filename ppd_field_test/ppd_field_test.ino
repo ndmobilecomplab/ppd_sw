@@ -15,10 +15,10 @@
 #define LEDPIN1 27          //Pin for first LED strand
 #define LEDPIN2 29          //Pin for second LED strand
 #define NLED 16             //Number of LEDs per strand
-#define BRIGHTNESS 64       //LED brightness, from 1-128. Default is 64.
+#define BRIGHTNESS 48//64       //LED brightness, from 1-128. Default is 64.
 
-#define LIGHT_SENSOR_1 12       //Pin for first light sensor
-#define LIGHT_SENSOR_2 13       //Pin for second light sensor
+#define LIGHT_SENSOR_1 A12       //Pin for first light sensor
+#define LIGHT_SENSOR_2 A13       //Pin for second light sensor
 #define LIGHT_THRESHOLD 200  //Lower limit for light sensors before device turns on
 
 #define S1 43         //Pin for switch 1
@@ -52,6 +52,8 @@
 #define RTC_FAILURE              7
 
 #define MINUTE 60000
+
+static const uint8_t analogPin[] = {A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15};
 
 volatile bool watchdogActivated = false;
 int sleepIterations = 0;
@@ -114,6 +116,7 @@ void sleep()
 {
   digitalWrite(MAX9744_SHDN, LOW);
   digitalWrite(BREAKOUT_RESET, LOW);
+  
   // Set sleep to full power down.  Only external interrupts or 
   // the watchdog timer can wake the CPU!
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -131,6 +134,7 @@ void sleep()
   sleep_disable();
   power_all_enable();
   lightSensorSetup();
+  switchSetup();
 }
 
 boolean initComponents(boolean isTest = false)
@@ -142,11 +146,28 @@ boolean initComponents(boolean isTest = false)
     //if a file read fails.
     if (!isTest)
     {
+      //keep those pins from floating! They are all INPUT by default
+      //per http://forum.arduino.cc/index.php?topic=28357.30
+      //and https://www.arduino.cc/en/Hacking/PinMapping2560
+      //Then we simply adjust those pins that we are actually using
+      for (int i = 2; i < 54; i++)
+      {
+        pinMode (i, INPUT_PULLUP);
+        //digitalWrite(i, HIGH);
+      }
+
+      for (int i = 0; i < 16; i++)
+      {
+        pinMode (analogPin[i], INPUT_PULLUP);
+        //digitalWrite(analogPin[i], HIGH);
+      }
+
+      //turn off the LED!
+      pinMode (13, OUTPUT);
+      digitalWrite (13, LOW);
+      
       pinMode (MAX9744_SHDN, OUTPUT);
       pinMode (BREAKOUT_RESET, OUTPUT);
-      digitalWrite(MAX9744_SHDN, HIGH);
-      digitalWrite(BREAKOUT_RESET, HIGH);
-
       
       pinMode (LOGGING_SDCS, OUTPUT);
       digitalWrite (LOGGING_SDCS, HIGH);  
@@ -191,6 +212,9 @@ boolean initComponents(boolean isTest = false)
       setupSuccessful = false;
       failure[LED_FAILURE] = true;
     }
+
+    digitalWrite(MAX9744_SHDN, HIGH);
+    digitalWrite(BREAKOUT_RESET, HIGH);
     
     //MP3 Player
     if (! musicPlayer.begin()){
@@ -540,7 +564,6 @@ void debugSensors()
 // purposes
 void loadAndRunDebug ()
 {
-  static boolean earlyRun = true;
   SdFile myFile;
   char line[32];
   int index;
@@ -569,7 +592,7 @@ void loadAndRunDebug ()
             index--;
          }
          
-         if (0 == strcmp(line, "debug sound") && !earlyRun)
+         if (0 == strcmp(line, "debug sound"))
          {
            if (verboseLogging)
            {
@@ -577,7 +600,7 @@ void loadAndRunDebug ()
            }
            debugSound(); 
          }
-         else if (0 == strcmp(line, "debug switches") && !earlyRun)
+         else if (0 == strcmp(line, "debug switches"))
          {
            if (verboseLogging)
            {
@@ -585,7 +608,7 @@ void loadAndRunDebug ()
            }
            debugSwitches();
          }
-         else if (0 == strcmp(line, "debug sensors") && !earlyRun)
+         else if (0 == strcmp(line, "debug sensors"))
          {
            if (verboseLogging)
            {
@@ -593,7 +616,7 @@ void loadAndRunDebug ()
            }
            debugSensors();
          }
-         else if (0 == strcmp(line, "play all sounds") && !earlyRun)
+         else if (0 == strcmp(line, "play all sounds"))
          {
           if (verboseLogging)
            {
@@ -601,7 +624,7 @@ void loadAndRunDebug ()
            }
            playAllSounds();
          }
-         else if (0 == strcmp (line, "play all patterns") && !earlyRun)
+         else if (0 == strcmp (line, "play all patterns"))
          {
            if (verboseLogging)
            {
@@ -609,7 +632,7 @@ void loadAndRunDebug ()
            }
            playAllPatterns();
          }
-         else if (0 == strcmp (line, "verbose logging") && earlyRun)
+         else if (0 == strcmp (line, "verbose logging"))
          {
            verboseLogging = true; 
            writeToLog("Verbose logging turned on");
@@ -652,7 +675,7 @@ void loadAndRunDebug ()
               writeToLog("interval set to " + String(overrideInterval));
             }
          }
-         else if (0 == strcmp (line, "repeat") && !earlyRun)
+         else if (0 == strcmp (line, "repeat"))
          {
            repeat = true;
          }
@@ -664,8 +687,6 @@ void loadAndRunDebug ()
   {
     writeToLog("no debug file"); 
   }
-
-  earlyRun = false;
   
   SD.chvol();
 }
@@ -1112,13 +1133,13 @@ boolean ledSetup(int brightness){
 
 boolean switchSetup ()
 {
-  pinMode(S1, INPUT);
-  pinMode(S2, INPUT);
-  pinMode(S3, INPUT);
-  pinMode(S4, INPUT);
-  pinMode(S5, INPUT);
-  pinMode(S6, INPUT);
-  pinMode(S7, INPUT);
+  for (int i = S7; i <= S1; i++)
+  {
+    if (i %2 == 1)
+    {
+      pinMode (i, INPUT);      
+    }
+  }
   
   return true; //pinMode does not return anything
 }
@@ -1128,6 +1149,9 @@ boolean lightSensorSetup()
   //Set pins to input
   pinMode(LIGHT_SENSOR_1, INPUT);
   pinMode(LIGHT_SENSOR_2, INPUT);
+
+  digitalWrite(LIGHT_SENSOR_1, LOW);
+  digitalWrite(LIGHT_SENSOR_2, LOW);
 
   //Test sensors. If either value is 0, might be disconnected.
   int s1 = analogRead(LIGHT_SENSOR_1);
@@ -1343,18 +1367,15 @@ boolean startTest()
   {
     delay (75);
     
-    if (digitalRead(S7) && !lastVal)
-    {
-      lastVal = digitalRead(S7);
-      return false; 
-    }
-    else if (!digitalRead(S7) && lastVal) {
+  if (!digitalRead(S7) && lastVal) {
       lastVal = digitalRead(S7);
       return true; 
     }
-    
-    
   } 
+  else
+  {
+    lastVal = digitalRead (S7);
+  }
   
   return false;
 }
