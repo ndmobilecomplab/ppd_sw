@@ -286,6 +286,8 @@ void setup ()
 
   loadAndRunDebug();
 
+  test();
+
   writeToLog ("Beginning main program");
   Serial.println ("Beginning main program");
   
