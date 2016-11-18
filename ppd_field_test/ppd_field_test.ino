@@ -234,9 +234,9 @@ boolean initComponents(boolean isTest = false)
     if (!lightSensorSetup()){
       //Serial.println(F("Light sensor setup failed."));
       writeToLog ("Light sensor setup failed. One or both registered 0."); 
-      failure[LIGHT_SENSOR_FAILURE] = true;
+      //failure[LIGHT_SENSOR_FAILURE] = true;
       //error (LIGHT_SENSOR_FAILURE);
-      setupSuccessful = false;
+      //setupSuccessful = false;
     }
   
     //Switches
@@ -1225,7 +1225,7 @@ boolean isNight (boolean isSensitive)
   if (useRTCForDay ())
   {
     DateTime now = RTC.now();
-    if (6 < now.hour() && 18 > now.hour ())
+    if (7 <= now.hour() && 18 > now.hour ())
     {
       rtcDay = true;
     }
