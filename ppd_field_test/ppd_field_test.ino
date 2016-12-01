@@ -1285,9 +1285,8 @@ int getInterval ()
 {
   //S6, S7
   int interval;
-  int intervalMultiplier = digitalRead(S6) << 1;
   
-  if (digitalRead(S6))
+  if (!digitalRead(S6))
   {
     interval = 10; 
   }
