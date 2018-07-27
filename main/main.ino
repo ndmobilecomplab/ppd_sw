@@ -1,3 +1,5 @@
+#include <Adafruit_VS1053.h>
+#include <SD.h>
 #include <I2S.h>
 #include <Adafruit_NeoPixel.h>
 
@@ -10,17 +12,29 @@ const int LED_PIN_2 = 11;
 const int NUM_LEDS = 4;
 
 Adafruit_NeoPixel strips[2] = {Adafruit_NeoPixel(NUM_LEDS, LED_PIN_1, NEO_GRB + NEO_KHZ800),Adafruit_NeoPixel(NUM_LEDS, LED_PIN_2, NEO_GRB + NEO_KHZ800)};
-  
+#define VS1053_RESET   -1
+#define VS1053_CS       6     // VS1053 chip select pin (output)
+#define VS1053_DCS     10     // VS1053 Data/command select pin (output)
+#define CARDCS          5     // Card chip select pin
+// DREQ should be an Int pin *if possible* (not possible on 32u4)
+#define VS1053_DREQ     9     // VS1053 Data request, ideally an Interrupt pin
+
+Adafruit_VS1053_FilePlayer musicPlayer = 
+  Adafruit_VS1053_FilePlayer(VS1053_RESET, VS1053_CS, VS1053_DCS, VS1053_DREQ, CARDCS);
 
 void setup() {
   /*
    * DEBUG CODE
    */
 
-//  while ( ! Serial ) { delay( 1 ); }
-//  Serial.begin(9600);
-//
-//  Serial.println("setup!!!");
+  while ( ! Serial ) { delay( 1 ); }
+  Serial.begin(9600);
+
+  Serial.println("setup!!!");
+  if (! musicPlayer.begin()) { // initialise the music player
+     Serial.println(F("Couldn't find VS1053, do you have the right pins defined?"));
+     //while (1);
+  }
  
   strips[0].begin();
   strips[1].begin();
@@ -32,7 +46,7 @@ void setup() {
   }
 
   delay(1000);
-
+  musicPlayer.sineTest(0x44, 500);    // Make a tone to indicate VS1053 is working
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < NUM_LEDS; j++) {
       strips[i].setPixelColor(j, 255, 255, 255); //pixel num, r, g, b
