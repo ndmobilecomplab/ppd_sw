@@ -47,12 +47,22 @@ void setup() {
 
   delay(1000);
   musicPlayer.sineTest(0x44, 500);    // Make a tone to indicate VS1053 is working
+  if (!SD.begin(CARDCS)) {
+    Serial.println(F("SD failed, or not present"));
+    while (1);  // don't do anything more
+  }
+  Serial.println("SD OK!");
+  
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < NUM_LEDS; j++) {
       strips[i].setPixelColor(j, 255, 255, 255); //pixel num, r, g, b
     }
     strips[i].show();
   }
+
+  musicPlayer.setVolume(10,10);
+  musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);  // DREQ int
+  musicPlayer.startPlayingFile("Sean.mp3");
 
   
   pinMode(RESET_BUTTON, INPUT_PULLUP);
@@ -98,6 +108,7 @@ void loop() {
       }
       strips[i].show();
     }
+    musicPlayer.stopPlaying();
     while (1) {
       digitalWrite(DONE_PIN, HIGH);
       delay(1);
