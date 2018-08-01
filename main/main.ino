@@ -6,7 +6,7 @@
 const int RESET_BUTTON = A3;
 const int SOUND_BUTTON = A4;
 const int LIGHT_BUTTON = A5;
-const int DONE_PIN = 13;
+const int DONE_PIN = A2;
 const int LED_PIN_1 = 12;
 const int LED_PIN_2 = 11;
 const int NUM_LEDS = 4;
@@ -27,7 +27,7 @@ void setup() {
    * DEBUG CODE
    */
 
-  while ( ! Serial ) { delay( 1 ); }
+  //while ( ! Serial ) { delay( 1 ); }
   Serial.begin(9600);
 
   Serial.println("setup!!!");
@@ -98,8 +98,18 @@ void loop() {
       }
       strips[i].show();
     }
-    digitalWrite(DONE_PIN, LOW);
-    digitalWrite(DONE_PIN, HIGH);
+    while (1) {
+      digitalWrite(DONE_PIN, HIGH);
+      delay(1);
+      digitalWrite(DONE_PIN, LOW);
+      delay(1);
+    }
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < NUM_LEDS; j++) {
+        strips[i].setPixelColor(j, 255, 0, 0); //pixel num, r, g, b
+      }
+      strips[i].show();
+    }
   }
 
   if (digitalRead(SOUND_BUTTON) == LOW) {
