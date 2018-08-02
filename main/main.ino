@@ -27,13 +27,13 @@ void setup() {
    * DEBUG CODE
    */
 
-  //while ( ! Serial ) { delay( 1 ); }
+  while ( ! Serial ) { delay( 1 ); }
   Serial.begin(9600);
 
   Serial.println("setup!!!");
   if (! musicPlayer.begin()) { // initialise the music player
      Serial.println(F("Couldn't find VS1053, do you have the right pins defined?"));
-     //while (1);
+     while (1);
   }
  
   strips[0].begin();
@@ -60,7 +60,7 @@ void setup() {
     strips[i].show();
   }
 
-  musicPlayer.setVolume(10,10);
+  musicPlayer.setVolume(2,2);
   musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);  // DREQ int
   musicPlayer.startPlayingFile("Sean.mp3");
 
