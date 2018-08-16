@@ -27,7 +27,7 @@ void setup() {
    * DEBUG CODE
    */
 
-  while ( ! Serial ) { delay( 1 ); }
+  //while ( ! Serial ) { delay( 1 ); }
   Serial.begin(9600);
 
   Serial.println("setup!!!");
