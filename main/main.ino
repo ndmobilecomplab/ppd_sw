@@ -101,7 +101,7 @@ void setup() {
 
 void loop() {
   // repeatedly set the DONE pin HIGH and LOW
-  if (digitalRead(RESET_BUTTON) == LOW) {
+  if (digitalRead(RESET_BUTTON) == HIGH) {
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < NUM_LEDS; j++) {
         strips[i].setPixelColor(j, 0, 0, 0); //pixel num, r, g, b
