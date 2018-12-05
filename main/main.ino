@@ -9,7 +9,7 @@ const int LIGHT_BUTTON = A5;
 const int DONE_PIN = A2;
 const int LED_PIN_1 = 12;
 const int LED_PIN_2 = 11;
-const int NUM_LEDS = 4;
+const int NUM_LEDS = 32;
 
 Adafruit_NeoPixel strips[2] = {Adafruit_NeoPixel(NUM_LEDS, LED_PIN_1, NEO_GRB + NEO_KHZ800),Adafruit_NeoPixel(NUM_LEDS, LED_PIN_2, NEO_GRB + NEO_KHZ800)};
 #define VS1053_RESET   -1
@@ -21,6 +21,10 @@ Adafruit_NeoPixel strips[2] = {Adafruit_NeoPixel(NUM_LEDS, LED_PIN_1, NEO_GRB + 
 
 Adafruit_VS1053_FilePlayer musicPlayer = 
   Adafruit_VS1053_FilePlayer(VS1053_RESET, VS1053_CS, VS1053_DCS, VS1053_DREQ, CARDCS);
+
+bool soundGo = false;
+bool lightsGo = false;
+long loopCount = 0;
 
 void setup() {
   /*
@@ -53,17 +57,10 @@ void setup() {
   }
   Serial.println("SD OK!");
   
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < NUM_LEDS; j++) {
-      strips[i].setPixelColor(j, 255, 255, 255); //pixel num, r, g, b
-    }
-    strips[i].show();
-  }
+  blinkAllLights (255, 255, 255, 500);
 
   musicPlayer.setVolume(2,2);
   musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);  // DREQ int
-  musicPlayer.startPlayingFile("Sean.mp3");
-
   
   pinMode(RESET_BUTTON, INPUT_PULLUP);
   pinMode(SOUND_BUTTON, INPUT_PULLUP);
@@ -99,46 +96,84 @@ void setup() {
     //choose random light file and start running
 }
 
-void loop() {
-  // repeatedly set the DONE pin HIGH and LOW
-  if (digitalRead(RESET_BUTTON) == HIGH) {
-    for (int i = 0; i < 2; i++) {
+void setAllLights (int r, int g, int b) {
+  for (int i = 0; i < 2; i++) {
       for (int j = 0; j < NUM_LEDS; j++) {
-        strips[i].setPixelColor(j, 0, 0, 0); //pixel num, r, g, b
+        strips[i].setPixelColor(j, r, g, b); //pixel num, r, g, b
       }
       strips[i].show();
-    }
-    musicPlayer.stopPlaying();
+   }
+}
+
+void blinkAllLights (int r, int g, int b, long dur) {
+  setAllLights(r, g, b);
+  delay(dur);
+  setAllLights(0, 0, 0);
+}
+
+void off() {
     while (1) {
       digitalWrite(DONE_PIN, HIGH);
       delay(1);
       digitalWrite(DONE_PIN, LOW);
       delay(1);
     }
-    for (int i = 0; i < 2; i++) {
-      for (int j = 0; j < NUM_LEDS; j++) {
-        strips[i].setPixelColor(j, 255, 0, 0); //pixel num, r, g, b
-      }
-      strips[i].show();
-    }
-  }
+}
 
+void configLights() {
+  
+}
+
+void loop() {
   if (digitalRead(SOUND_BUTTON) == LOW) {
-    for (int i = 0; i < 2; i++) {
-      for (int j = 0; j < NUM_LEDS; j++) {
-        strips[i].setPixelColor(j, 0, 255, 0); //pixel num, r, g, b
-      }
-      strips[i].show();
+    if (!soundGo) {
+      soundGo = true;
+      
+      blinkAllLights (0, 255, 0, 500);
+      
+      musicPlayer.startPlayingFile("sean.mp3");
+    } else {
+      musicPlayer.stopPlaying();
+      blinkAllLights (0, 255, 0, 500);
+      off();
     }
   }
 
   if (digitalRead(LIGHT_BUTTON) == LOW) {
-    for (int i = 0; i < 2; i++) {
-      for (int j = 0; j < NUM_LEDS; j++) {
-        strips[i].setPixelColor(j, 255, 255, 0); //pixel num, r, g, b
-      }
-      strips[i].show();
+    if (!lightsGo) {
+      lightsGo = true;
+      blinkAllLights (0, 127, 127, 500);
+      
+    } else {
+       blinkAllLights (0, 255, 255, 500);
+
+       off();
     }
   }
+
+  //from https://gist.github.com/jamesotron/766994
+  if (lightsGo) {
+    unsigned int rgbColour[3];
+    rgbColour[0] = 255;
+    rgbColour[1] = 0;
+    rgbColour[2] = 0;  
+  
+    // Choose the colours to increment and decrement.
+    for (int decColour = 0; decColour < 3; decColour += 1) {
+      int incColour = decColour == 2 ? 0 : decColour + 1;
+  
+      // cross-fade the two colours.
+      for(int i = 0; i < 255; i += 1) {
+        rgbColour[decColour] -= 1;
+        rgbColour[incColour] += 1;
+        
+        setAllLights(rgbColour[0], rgbColour[1], rgbColour[2]);
+        delay(5);
+      }
+    }
+  }
+
+  
+
 
 }
