@@ -112,7 +112,7 @@ void setup() {
   }
 
   delay(1000);
-  musicPlayer.sineTest(0x44, 500);    // Make a tone to indicate VS1053 is working
+  //musicPlayer.sineTest(0x44, 500);    // Make a tone to indicate VS1053 is working
   if (!SD.begin(CARDCS)) {
     Serial.println(F("SD failed, or not present"));
     while (1);  // don't do anything more
@@ -152,28 +152,48 @@ void go() {
 
   struct pattern myPattern;
       
-  
-  patternIndex = random(0,numPatternFiles);
-  if (!loadPattern (patternFiles[patternIndex], myPattern))
-  {
-     
+  bool goSound = false;
+  bool goLights = false;
+
+  actionStart = millis();
+  while (!goSound and !goLights && 5 * SECOND >= millis() - actionStart) {
+    if (digitalRead(LIGHT_BUTTON) == LOW) {
+      goLights = true;
+    } else if (digitalRead(SOUND_BUTTON) == LOW) {
+      goSound = true;
+    } else if (digitalRead(RESET_BUTTON) == HIGH) {
+      goLights = true;
+      goSound = true;
+    }
   }
-   
-  soundIndex = random(0, numSoundFiles);
-  
-  if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
-  {
-     
+
+  if (goLights) {
+    patternIndex = random(0,numPatternFiles);
+    if (!loadPattern (patternFiles[patternIndex], myPattern))
+    {
+       
+    }
+  }
+
+  if (goSound) {
+    soundIndex = random(0, numSoundFiles);
+    
+    if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
+    {
+       
+    }
   }
 
   actionStart = millis();
 
-  while (!musicPlayer.stopped() && 15 * SECOND >= millis() - actionStart)
+  while ((goLights || !musicPlayer.stopped()) && 15 * SECOND >= millis() - actionStart)
   {
-    playPattern(myPattern);
+    if (goLights) {
+      playPattern(myPattern);
+    }
   }
 
-  if (!musicPlayer.stopped())
+  if (goSound || !musicPlayer.stopped())
   {
     musicPlayer.stopPlaying();
   }
