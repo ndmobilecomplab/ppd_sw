@@ -1,5 +1,11 @@
+#include <MinimumSerial.h>
+#include <SdFatConfig.h>
+#include <SdFat.h>
+#include <SysCall.h>
+#include <BlockDriver.h>
+#include <FreeStack.h>
+
 #include <Adafruit_VS1053.h>
-#include <SdFat.h>              //SD card library
 #include <I2S.h>
 #include <Adafruit_NeoPixel.h>
 
@@ -49,26 +55,60 @@ struct pattern
 };
 
 void setup() {
-  /*
-   * DEBUG CODE
-   */
+  strip.begin();
 
-  //while ( ! Serial ) { delay( 1 ); }
-  Serial.begin(9600);
+  setAllLights(0, 0, 0);
+  pinMode(RESET_BUTTON, INPUT_PULLUP);
+  pinMode(SOUND_BUTTON, INPUT_PULLUP);
+  pinMode(LIGHT_BUTTON, INPUT_PULLUP);
+  pinMode(DONE_PIN, OUTPUT);
+  
+  
+  randomSeed(analogRead(0));
 
-  Serial.println("setup!!!");
+   if (digitalRead(RESET_BUTTON) == HIGH) {
+    configuration();
+    
+  } 
+//  char buff[32];
+//  getProp("interval", buff, 32);
+//  interval = atoi(buff);
+//
+//  if (0 == interval) {
+//    done();
+//  }
+
+  
+   
+//   Serial.begin(9600);
+//   while ( ! Serial ) { delay( 1 ); }
+//
+//  Serial.println("setup!!!");
+
+//  interval = getProp("interval").toInt();
+//  Serial.println(interval);
+//  setStatusLights(255, 0, 0, interval);
+//  runIndex = getProp("index").toInt();
+//
+//   if (0 == interval) {
+//    done();
+//   }
+
+//  if (shouldGo()) {
+//    go();
+//  } else {
+//    if (interval != 0) {
+//      runIndex = runIndex + 1 % interval;
+//      setProp("index", String(runIndex));
+//    }
+//    done();
+//  }
+
+  
+  
   if (! musicPlayer.begin()) { // initialise the music player
      Serial.println(F("Couldn't find VS1053, do you have the right pins defined?"));
      while (1);
-  }
- 
-  strips[0].begin();
-  strips[1].begin();
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < NUM_LEDS; j++) {
-      strips[i].setPixelColor(j, 0, 0, 0); //pixel num, r, g, b
-    }
-    strips[i].show();
   }
 
   delay(1000);
@@ -87,22 +127,13 @@ void setup() {
   musicPlayer.setVolume(2,2);
   musicPlayer.useInterrupt(VS1053_FILEPLAYER_PIN_INT);  // DREQ int
   
-  pinMode(RESET_BUTTON, INPUT_PULLUP);
-  pinMode(SOUND_BUTTON, INPUT_PULLUP);
-  pinMode(LIGHT_BUTTON, INPUT_PULLUP);
-  pinMode(DONE_PIN, OUTPUT);
+  
 
-  loadSoundAndPatternNames ();  
-
-  loadAndRunDebug();
-
-  if (digitalRead(RESET_BUTTON) == HIGH) {
-    configuration();
-  }
-
-  if (shouldGo()) {
-    go();
-  }
+  loadSoundAndPatternNames ();
+ 
+  go();
+  
+  
 }
 
 void loop() {
@@ -110,10 +141,16 @@ void loop() {
 }
 
 void go() {
-  loudness = getProp("loudness").toInt();
-  musicPlayer.setVolume(100 -(loudness*14),100 -(loudness*14));
-  brightness = getProp("brightness").toInt();
-  strip.setBrightness(36*brightness);
+  //loudness = getProp("sound").toInt();
+  musicPlayer.setVolume(2,2);//100 -(loudness*14),100 -(loudness*14));
+ // brightness = getProp("light").toInt();
+  strip.setBrightness(200);//36*brightness);
+
+  int soundIndex = -1;
+  int patternIndex = -1;
+  unsigned long actionStart;
+
+  struct pattern myPattern;
       
   
   patternIndex = random(0,numPatternFiles);
@@ -124,12 +161,6 @@ void go() {
    
   soundIndex = random(0, numSoundFiles);
   
-  if (getVolume () != volume)
-  {
-    volume = getVolume ();
-    musicPlayer.setVolume (volume, 100);
-  }
-  
   if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
   {
      
@@ -137,15 +168,9 @@ void go() {
 
   actionStart = millis();
 
-  while (!musicPlayer.stopped() && MINUTE / 4 >= millis() - actionStart)
+  while (!musicPlayer.stopped() && 15 * SECOND >= millis() - actionStart)
   {
-    if (MINUTE / 8 <= millis() - actionStart)
-    {
-      musicPlayer.setVolume (100, volume);
-    }
-    
     playPattern(myPattern);
-    
   }
 
   if (!musicPlayer.stopped())
@@ -153,7 +178,7 @@ void go() {
     musicPlayer.stopPlaying();
   }
   
-  setProp("index", String(0));
+  //setProp("index", String(0));
 
   done();
 
@@ -170,7 +195,7 @@ void done() {
 
 void setAllLights (int r, int g, int b) {
   for (int j = 0; j < NUM_LEDS; j++) {
-    strips.setPixelColor(j, r, g, b); //pixel num, r, g, b
+    strip.setPixelColor(j, r, g, b); //pixel num, r, g, b
   }
   strip.show();
 }
@@ -178,7 +203,7 @@ void setAllLights (int r, int g, int b) {
 void setStatusLights(int r, int g, int b, int level) {
   for (int i = 0; i < 4; i++) {  
     for (int j = 0; j < level; j++) {
-      strips.setPixelColor(j, r, g, b); //pixel num, r, g, b
+      strip.setPixelColor((i*NUM_LEDS/4) + j, r, g, b); //pixel num, r, g, b
     }
   }
   strip.show();
@@ -190,11 +215,15 @@ void blinkAllLights (int r, int g, int b, long dur) {
   setAllLights(0, 0, 0);
 }
 
-void shouldGo() {  
-  interval = getProp("interval").toInt();
-  runIndex = getProp("index").toInt();
+bool shouldGo() {
+  char buff1[32];
+  char buff2[32];
+  getProp("interval", buff1, 32);
+  interval = atoi(buff1);
+  getProp("index", buff2, 32);
+  runIndex = atoi(buff2);;
 
-  return interval == index;
+  return interval == runIndex;
 }
 
 void configuration() {
@@ -218,7 +247,9 @@ void configuration() {
 
 void configInterval() {
   blinkAllLights(255, 0, 0, 500);
-  interval = getProp("interval").toInt();
+  char buff[32];
+  getProp("interval", buff, 32);
+  interval = atoi(buff);
   
   setStatusLights(255, 0, 0, interval);
   
@@ -227,8 +258,9 @@ void configInterval() {
     if (millis() - start >= 3 * SECOND) {
       interval += 1 % 8;
       setAllLights(0, 0, 0);
+      sprintf(buff, "%d\n", interval);
+      setProp("interval", buff);
       setStatusLights(255, 0, 0, interval);
-      setProp("interval", String(interval));
       start = millis();
     }
   }
@@ -239,76 +271,83 @@ void configInterval() {
 void configLights() {
   unsigned long start = millis();
   blinkAllLights(0, 255, 255, 500);
-  
-  brightness = getProp("brightness").toInt();
+  char buff[32];
+  getProp("light", buff, 32);
+  brightness = atoi(buff);
   setStatusLights(0, 255, 255, brightness);
   
   while (millis() - start < 5 * SECOND) {
     if (digitalRead(LIGHT_BUTTON) == LOW) {
       start = millis();
-      brightness += 1 % 8;
+      brightness = (brightness + 1) % 8;
       setAllLights(0, 0, 0);
       setStatusLights(0, 255, 255, brightness);
       start = millis();
     }
   }
 
-  setProp("brightness", String(brightness));
+  sprintf(buff, "%d\n", brightness);
+  setProp("light", buff);
   blinkAllLights(0, 255, 255, 500);
 }
 
 void configSound() {
   unsigned long start = millis();
   blinkAllLights(0, 255, 0, 500);
-
-  loudness = getProp("loudness").toInt();
+  char buff[32];
+  getProp("sound", buff, 32);
+  loudness = atoi(buff);
   setStatusLights(0, 255, 0, loudness);
 
   while (millis() - start < 5 * SECOND) {
     if (digitalRead(SOUND_BUTTON) == LOW) {
       start = millis();
-      loudness += 1 % 8;
+      loudness = (loudness + 1) % 8;
       setAllLights(0, 0, 0);
       setStatusLights(0, 255, 0, loudness);
       start = millis();
     }
   }
 
-  setProp("loudness", String(loudness));
+  sprintf(buff, "%d\n", loudness);
+  setProp("sound", buff);
   blinkAllLights(0, 255, 0, 500);
 }
 
-String getProp(String key) {
+void getProp(char * key, char * buff, unsigned len) {
   SdFile myFile;
   char fullName[26];
-  char buff[64];
-  sprintf (fullName, "/%s.prop", key);
-
+  int index;
+  sprintf (fullName, "%s.prp", key);
+  SD.chdir ();
   if (myFile.open (fullName))
   {
     while (myFile.available())
     {
       index = 0;
-      memset(buff, 0, sizeof(buff));
-      while ('\n' != (buff[index++] = myFile.read()) && index < 64);
+      char ch;
+      memset(buff, 0, len);
+      do {
+        ch = myFile.read();
+        buff[index++] = ch;
+      }while ('\n' != ch && index < len);
+      
      
       buff[index - 1] = '\0';  
     }
     
     myFile.close ();
   }
-
-  return str(buff);
 }
 
-void setProp(String key, String val) {
+void setProp(char * key, char * val) {
   SdFile myFile;
   char fullName[26];
   char buff[32];
+  SD.chdir ();
+  sprintf (fullName, "%s.prp", key);
 
-  sprintf (fullName, "/%s.prop", key);
-
-  if (myFile.open (fullName))
+  if (myFile.open (fullName, FILE_WRITE))
   {
     myFile.print(val);
     
@@ -436,7 +475,7 @@ boolean loadPattern (char * fileName, struct pattern &myPattern)
   SdFile myFile;
   char fullName[26];
   char buff[32];
-  byte index;
+  int index;
   
   myPattern.length = 0;
   
@@ -461,7 +500,6 @@ boolean loadPattern (char * fileName, struct pattern &myPattern)
   else
   {
     success = false;
-    error(0); //throw a generic error
   }
   
   return success;
@@ -471,7 +509,7 @@ boolean playPattern (struct pattern myPattern)
 {
   char effect[10];
   char buff[32];
-  byte ledChip = 0;
+  byte row = 0;
   byte r, g, b;
   unsigned long duration;
   char * str;
@@ -486,14 +524,14 @@ boolean playPattern (struct pattern myPattern)
   
     if (4 != strlen(str))
     {
-      ledChip = B1111;
+      row = B1111;
     }
     else
     {
       for (int i = 0; i < 4; i++)
       {
-        ledChip <<= 1;
-        ledChip |= ('1' == str[i] ? 0x1 : 0x0);
+        row <<= 1;
+        row |= ('1' == str[i] ? 0x1 : 0x0);
       } 
     }
 
@@ -529,25 +567,23 @@ boolean playPattern (struct pattern myPattern)
     if (0 == strcmp(effect, "flash"))
     {
       // turns LEDs on then off
-      ledFlash (ledChip, r, g, b, duration);
+      ledFlash (row, r, g, b, duration);
     }
     else if (0 == strcmp (effect, "wave"))
     {
       // activates the lights on a chip one at a time from top to bottom
-      ledWave (ledChip, r, g, b, duration);
+      ledWave (row, r, g, b, duration);
     }
     else if (0 == strcmp (effect, "alt"))
     {
       // alternates colors rapidly. Alternates with the color used during the
       // last call
-      ledAlternate (ledChip, r, g, b, duration);
+      ledAlternate (row, r, g, b, duration);
     }
     else
     {
        //default: all white for duration
-       ledSet (255, 255, 255);
-       delay (duration);
-       ledSet (0, 0, 0);
+       blinkAllLights (255, 255, 255, duration);
     }
     
     index++;
@@ -562,83 +598,80 @@ void ledWave (byte leds, byte r, byte g, byte b, unsigned long duration)
 
   while (duration >= millis () - start)
   {
-    for (int i = 0; i < 8; i++)
-    {
+    for (int j = 0; j < NUM_LEDS / 4; j++) {
       if (leds & 0x1)
       {
-        strand1.setColor (i, r, g, b);
+        strip.setPixelColor (j, r, g, b);
       }
       
       if (leds & 0x2)
       {
-        strand1.setColor(NLED - 1 - i, r, g, b);
+        strip.setPixelColor((NUM_LEDS/4) + j, r, g, b);
       }
       
       if (leds & 0x4)
       {
-       strand2.setColor (i, r, g, b); 
+        strip.setPixelColor((NUM_LEDS/2) + j, r, g, b);
       }
       
       if (leds & 0x8)
       {
-       strand2.setColor (NLED - 1 - i, r, g, b); 
+        strip.setPixelColor ((3*NUM_LEDS/4) + j, r, g, b); 
       }
       
-      strand1.show ();
-      strand2.show ();
+      strip.show ();
       
       delay (50);
       
-      strand1.setColor (i, 0, 0, 0);
-      strand1.setColor (NLED - 1  - i, 0, 0, 0);
-      strand2.setColor (i, 0, 0, 0);
-      strand2.setColor (NLED - 1 - i, 0, 0, 0);
-      
-      strand1.show ();
-      strand2.show ();     
-    } 
+      strip.setPixelColor (j, 0, 0, 0);
+      strip.setPixelColor((NUM_LEDS/4) + j, 0, 0, 0);
+      strip.setPixelColor((NUM_LEDS/2) + j, 0, 0, 0);
+      strip.setPixelColor ((3*NUM_LEDS/4) + j, 0, 0, 0); 
+
+      strip.show ();     
+    }
+    
   }
   
-  ledSet (0, 0, 0);
+  setAllLights (0, 0, 0);
 
 }
 
-void ledSetByChip (byte leds, byte r, byte g, byte b, unsigned long duration)
+void ledSetByRow (byte leds, byte r, byte g, byte b, unsigned long duration)
 {
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < NUM_LEDS / 4; i++)
   {
     if (leds & 0x1)
     {
-      strand1.setColor (i, r, g, b);
+      strip.setPixelColor (i, r, g, b);
     }
     
     if (leds & 0x2)
     {
-      strand1.setColor(NLED - 1 - i, r, g, b);
+      strip.setPixelColor((NUM_LEDS / 4) + i, r, g, b);
     }
     
     if (leds & 0x4)
     {
-     strand2.setColor (i, r, g, b); 
+     strip.setPixelColor ((2 * NUM_LEDS / 4) + i, r, g, b); 
     }
     
     if (leds & 0x8)
     {
-     strand2.setColor (NLED - 1  - i, r, g, b); 
+     strip.setPixelColor ((3 * NUM_LEDS / 4) + i, r, g, b); 
     }
   }
   
-  strand1.show ();
-  strand2.show ();
+  strip.show ();
   
   delay (duration);
 }
 
 void ledFlash (byte leds, byte r, byte g, byte b, unsigned long duration)
 {
-  ledSetByChip (leds, r, g, b, duration);
+  ledSetByRow (leds, r, g, b, duration);
   
-  ledSet (0, 0, 0);  
+  setAllLights (0, 0, 0);  
 }
 
 void ledAlternate (byte leds, byte r, byte g, byte b, unsigned long duration)
@@ -650,25 +683,21 @@ void ledAlternate (byte leds, byte r, byte g, byte b, unsigned long duration)
   
   while (duration >= millis () - start)
   {
-    ledSetByChip (leds, r, g, b, 50);
-    ledSetByChip (leds, lastR, lastG, lastB, 50);
+    ledSetByRow (leds, r, g, b, 50);
+    ledSetByRow (leds, lastR, lastG, lastB, 50);
   }
   
   lastR = r;
   lastG = g;
   lastB = b;
   
-  ledSet (0, 0, 0);  
+  setAllLights (0, 0, 0);  
 }
 
-void ledSet (byte r, byte g, byte b)
+void upperCase (char * buf, int buf_size)
 {
-   for (int i = 0; i < NLED; i++)
-   {
-      strand1.setColor(i, r,g,b);
-      strand2.setColor(i, r,g,b);   
-   } 
-   
-   strand1.show();
-   strand2.show();
+  for (int i = 0; i < buf_size && buf[i]; i++)
+  {
+     buf[i] = toupper(buf[i]);
+  } 
 }
