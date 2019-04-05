@@ -66,7 +66,7 @@ void setup() {
   
   randomSeed(analogRead(0));
 
-   if (digitalRead(RESET_BUTTON) == HIGH) {
+   if (digitalRead(RESET_BUTTON) == LOW) {
     configuration();
     
   } 
@@ -161,7 +161,7 @@ void go() {
       goLights = true;
     } else if (digitalRead(SOUND_BUTTON) == LOW) {
       goSound = true;
-    } else if (digitalRead(RESET_BUTTON) == HIGH) {
+    } else if (digitalRead(RESET_BUTTON) == LOW) {
       goLights = true;
       goSound = true;
     }
