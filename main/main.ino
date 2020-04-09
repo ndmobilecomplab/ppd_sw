@@ -171,7 +171,7 @@ void go() {
     patternIndex = random(0,numPatternFiles);
     if (!loadPattern (patternFiles[patternIndex], myPattern))
     {
-       
+       blinkAllLights (255, 0, 0, 500);
     }
   }
 
@@ -180,7 +180,7 @@ void go() {
     
     if (!musicPlayer.startPlayingFile(soundFiles[soundIndex]))
     {
-       
+       blinkAllLights (255, 0, 0, 500);
     }
   }
 
