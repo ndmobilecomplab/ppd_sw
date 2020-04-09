@@ -9,20 +9,24 @@
 #include <I2S.h>
 #include <Adafruit_NeoPixel.h>
 
-const int RESET_BUTTON = A3;
-const int SOUND_BUTTON = A4;
-const int LIGHT_BUTTON = A5;
-const int DONE_PIN = A2;
-const int LED_PIN = 12;
-const int NUM_LEDS = 32;
-
+#define LED_PIN  14
+#define NUM_LEDS 21
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
-#define VS1053_RESET   -1
-#define VS1053_CS       6     // VS1053 chip select pin (output)
-#define VS1053_DCS     10     // VS1053 Data/command select pin (output)
-#define CARDCS          5     // Card chip select pin
-// DREQ should be an Int pin *if possible* (not possible on 32u4)
-#define VS1053_DREQ     9     // VS1053 Data request, ideally an Interrupt pin
+
+// MusicMaker
+#define SHIELD_RESET -1   // VS1053 reset pin (unused!)
+#define SHIELD_CS  11   // VS1053 chip select pin (output)
+#define SHIELD_DCS  13   // VS1053 Data/command select pin (output)
+// These are common pins between breakout and shield
+#define CARDCS 10  // Card chip select pin
+// DREQ should be an Int pin, see http://arduino.cc/en/Reference/attachInterrupt
+#define DREQ 12   // VS1053 Data request, ideally an Interrupt pin
+
+
+//switches
+#define SOUND_BUTTON 15
+#define LIGHT_BUTTON 16
+#define FREQ_BUTTON 17
 
 
 #define SECOND 1000
